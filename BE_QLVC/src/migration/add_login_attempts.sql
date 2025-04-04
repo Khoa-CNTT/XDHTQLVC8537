@@ -1,0 +1,3 @@
+ALTER TABLE TaiKhoan
+ADD COLUMN login_attempts INT DEFAULT 0,
+ADD COLUMN last_login_attempt DATETIME DEFAULT NULL;

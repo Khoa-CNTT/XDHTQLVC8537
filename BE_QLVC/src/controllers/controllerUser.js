@@ -24,19 +24,34 @@ const getUser = async (req, res) => {
 }
 
 const registerUser = async (req, res) => {
+    console.log('Received registration request:', req.body);
+
     const { Email, Matkhau, SDT, Role } = req.body;
     if (!validator.isEmail(Email)) {
+        console.log('Invalid email:', Email);
         return res.status(400).json({ error: 'Email không hợp lệ' });
     }
+
+    // Check if email already exists
     let conn;
     try {
         conn = await connection.getConnection();
+
+        // Check existing email
+        const [existing] = await conn.query('SELECT * FROM TaiKhoan WHERE Email = ?', [Email]);
+        if (existing.length > 0) {
+            console.log('Email already exists:', Email);
+            return res.status(400).json({ error: 'Email đã tồn tại' });
+        }
+
         const hashedPassword = await bcrypt.hash(Matkhau, 10);
         const sql = 'INSERT INTO TaiKhoan (Email, MatKhau, SDT, Role) VALUES (?, ?, ?, ?)';
         await conn.query(sql, [Email, hashedPassword, SDT, Role]);
+
+        console.log('User registered successfully:', Email);
         res.status(201).json({ message: 'Đăng ký thành công' });
     } catch (err) {
-        console.error(err); // Debug: log error details
+        console.error('Registration error:', err);
         res.status(500).json({ error: err.message });
     } finally {
         if (conn) conn.release();
@@ -115,7 +130,7 @@ const deleteUser = async (req, res) => {
 const loginUser = async (req, res) => {
     const { Email, Matkhau } = req.body;
     if (!Email || !Matkhau) {
-        return res.status(400).json({ error: 'Email và Matkhau required' });
+        return res.status(400).json({ error: 'Email và Mật khẩu là bắt buộc' });
     }
     let conn;
     try {
@@ -127,7 +142,7 @@ const loginUser = async (req, res) => {
         const isMatch = await bcrypt.compare(Matkhau, user.MatKhau);
         if (!isMatch) return res.status(401).json({ error: 'Mật khẩu không đúng' });
 
-        const token = createToken(user);
+        const token = createToken(user); // Tạo token JWT
         res.json({ token, user });
     } catch (err) {
         console.error(err);
