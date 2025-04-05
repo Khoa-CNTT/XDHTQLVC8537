@@ -1,12 +1,12 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AdminLayout } from './views/admin/AdminLayout';
-import { UserManagement } from './views/admin/pages/UserManagement';
-import { ProductManagement } from './views/admin/pages/ProductManagement';
-import UserPage from './views/user/UserPage';
-import LoginPage from './views/auth/LoginPage'; // Import trang đăng nhập
-import RegisterPage from './views/auth/RegisterPage'; // Import trang đăng ký
-import './App.css';
+import { AdminLayout } from './pages/admin/AdminLayout';
+import { UserManagement } from './pages/admin/UserManagement';
+import { ProductManagement } from './pages/admin/ProductManagement';
+import UserPage from './pages/user/UserPage';
+import LoginPage from './pages/auth/LoginPage'; // Import trang đăng nhập
+import RegisterPage from './pages/auth/RegisterPage'; // Import trang đăng ký
+import './assets/App.css';
 
 function App() {
   const isAuthenticated = !!localStorage.getItem('token'); // Check if user is logged in
