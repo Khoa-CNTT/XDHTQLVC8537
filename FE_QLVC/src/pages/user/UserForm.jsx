@@ -96,6 +96,8 @@ export const UserForm = ({ isOpen, onClose, onSubmit, initialValues }) => {
                                         >
                                             <option value="user">User</option>
                                             <option value="admin">Admin</option>
+                                            <option value="admin">Nhân Viên</option>
+                                            <option value="admin">Người Dùng</option>
                                         </Field>
                                         {errors.Role && touched.Role && (
                                             <div className="mt-1 text-sm text-red-600">{errors.Role}</div>

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 export const ProductTable = ({ products, onEdit, onDelete }) => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -72,20 +71,20 @@ export const ProductTable = ({ products, onEdit, onDelete }) => {
                                     {formatCurrency(product.DonGia)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right border-b border-gray-100">
-                                    <div className="flex justify-end space-x-3">
+                                    <div className="admin-table-actions">
                                         <button
                                             onClick={() => onEdit(product)}
-                                            className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                                            className="admin-table-button admin-table-button-edit"
                                             title="Sửa"
                                         >
-                                            <PencilIcon className="h-5 w-5" />
+                                            <span className="h-5 w-5">✏️</span>
                                         </button>
                                         <button
                                             onClick={() => onDelete(product)}
-                                            className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                                            className="admin-table-button admin-table-button-delete"
                                             title="Xóa"
                                         >
-                                            <TrashIcon className="h-5 w-5" />
+                                            <span className="h-5 w-5">🗑️</span>
                                         </button>
                                     </div>
                                 </td>

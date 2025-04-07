@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { AdminActionButtons } from '../../components/admin/AdminButtons';
 
 export const UserTable = ({ users, onEdit, onDelete }) => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -13,6 +14,11 @@ export const UserTable = ({ users, onEdit, onDelete }) => {
 
     return (
         <div className="overflow-hidden bg-white rounded-lg border border-gray-200">
+            {/* Table Header/Description */}
+            <div className="sm:flex sm:items-center mb-6">
+            </div>
+
+            {/* Table Content */}
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 border-collapse">
                     <thead>
@@ -22,6 +28,9 @@ export const UserTable = ({ users, onEdit, onDelete }) => {
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
                                 Email
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                                Họ tên
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
                                 Số điện thoại
@@ -44,29 +53,26 @@ export const UserTable = ({ users, onEdit, onDelete }) => {
                                     {user.Email}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-b border-gray-100">
+                                    {user.HoTen}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-b border-gray-100">
                                     {user.SDT}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap border-b border-gray-100">
-                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                                        user.Role === 'admin' 
-                                            ? 'bg-purple-100 text-purple-800 border border-purple-200' 
-                                            : 'bg-green-100 text-green-800 border border-green-200'
-                                    }`}>
-                                        {user.Role}
-                                    </span>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-b border-gray-100">
+                                    {user.VaiTro}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right border-b border-gray-100">
-                                    <div className="flex justify-end space-x-3">
+                                    <div className="admin-table-actions">
                                         <button
                                             onClick={() => onEdit(user)}
-                                            className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                                            className="admin-table-button admin-table-button-edit"
                                             title="Sửa"
                                         >
                                             <PencilIcon className="h-5 w-5" />
                                         </button>
                                         <button
                                             onClick={() => onDelete(user)}
-                                            className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                                            className="admin-table-button admin-table-button-delete"
                                             title="Xóa"
                                         >
                                             <TrashIcon className="h-5 w-5" />
@@ -78,6 +84,8 @@ export const UserTable = ({ users, onEdit, onDelete }) => {
                     </tbody>
                 </table>
             </div>
+
+            {/* Pagination */}
             {users.length > itemsPerPage && (
                 <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
                     <div className="flex items-center justify-between">

@@ -68,14 +68,6 @@ export const ProductManagement = () => {
   return (
     <div>
       <div className="sm:flex sm:items-center mb-6">
-        <div className="sm:flex-auto">
-          <h2 className="text-2xl font-semibold text-gray-900">
-            Quản lý hàng hóa
-          </h2>
-          <p className="mt-2 text-sm text-gray-700">
-            Danh sách tất cả hàng hóa trong hệ thống
-          </p>
-        </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
           <button
             type="button"

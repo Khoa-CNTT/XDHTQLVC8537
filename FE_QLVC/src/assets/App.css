@@ -187,10 +187,8 @@
   width: 256px;
   height: 256px;
   object-fit: cover;
-  /* Changed to cover to handle different aspect ratios */
   margin-bottom: 1rem;
   border-radius: 8px;
-  /* Optional: adds rounded corners */
 }
 
 .login-logo,
@@ -212,14 +210,12 @@
   display: flex;
   min-height: 100vh;
   background-image: url('/assets/thong.jpg');
-  /* Đường dẫn từ public folder */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   position: relative;
 }
 
-/* Add overlay to make text more readable */
 .login-container::before {
   content: '';
   position: absolute;
@@ -228,12 +224,10 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  /* Semi-transparent overlay */
 }
 
 .login-content {
   position: relative;
-  /* To appear above the overlay */
   margin: auto;
   padding: 20px;
   display: flex;
@@ -244,13 +238,11 @@
   z-index: 1;
 }
 
-/* Update text colors for better visibility */
 .login-logo h2 {
   color: #ffffff;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Update form container for better visibility */
 .login-form-box {
   background-color: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
@@ -561,4 +553,242 @@
   .register-button {
     width: 100%;
   }
+}
+
+/* Admin Layout */
+.admin-sidebar {
+  position: fixed;
+  left: 2px;
+  top: 32px;
+  width: 203px;
+  height: 644px;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #e5e7eb;
+  padding: 1rem 0;
+}
+
+.admin-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-sidebar-item {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  margin: 0 0.5rem;
+}
+
+.admin-sidebar-item:hover {
+  background-color: #f3f4f6;
+  color: #4f46e5;
+}
+
+.admin-sidebar-item.active {
+  background-color: #4f46e5;
+  color: white;
+}
+
+.admin-sidebar-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.75rem;
+}
+
+/* Admin Header */
+.admin-header {
+  position: fixed;
+  top: 32px;
+  left: 205px;
+  right: 0;
+  height: 60px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  padding: 0 2rem;
+  justify-content: space-between;
+  /* Tạo khoảng cách giữa title và button */
+}
+
+.admin-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Admin Content Layout */
+.admin-content {
+  position: absolute;
+  top: 125px;
+  /* Increased from 100px to 125px */
+  left: 205px;
+  right: 0;
+  padding: 0;
+  min-height: calc(100vh - 170px);
+  background-color: white;
+}
+
+/* Admin Tables */
+.admin-table-container {
+  background-color: white;
+  border: none;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.admin-table th {
+  background-color: #f8fafc;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.admin-table td {
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1e293b;
+  font-size: 0.875rem;
+}
+
+/* Table Container */
+.overflow-hidden.bg-white.rounded-lg.border.border-gray-200 {
+  margin: 0;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0;
+  border-left: none;
+  margin-top: 1px;
+  /* Add small gap between button and table */
+}
+
+/* Admin Add Button Container */
+.sm\:flex.sm\:items-center.mb-6 {
+  position: relative;
+  left: 0;
+  padding: 1rem;
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-start;
+  /* Change from flex-end to flex-start */
+  margin-bottom: 0;
+}
+
+/* Admin Add Button */
+.admin-add-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: #4f46e5;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 0;
+  /* Remove any left margin */
+}
+
+/* Table Header Section */
+.sm\:flex.sm\:items-center.mb-6 {
+  margin: 0;
+  padding: 1rem;
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Table Row Styles */
+.admin-table tbody tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+.admin-table tbody tr:hover {
+  background-color: #f1f5f9;
+}
+
+/* Table Cell Alignment */
+.admin-table td,
+.admin-table th {
+  vertical-align: middle;
+}
+
+/* Form in Table */
+.mt-6.bg-white.rounded-lg.shadow.p-6 {
+  margin-top: 1rem;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+/* Admin Table Action Buttons */
+.admin-table-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.admin-table-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-table-button svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: white;
+  /* Make icons white */
+}
+
+.admin-table-button-edit {
+  background-color: #2563eb;
+  color: white;
+}
+
+.admin-table-button-edit:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.admin-table-button-delete {
+  background-color: #dc2626;
+  color: white;
+}
+
+.admin-table-button-delete:hover {
+  background-color: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.admin-table-button:active {
+  transform: translateY(0);
 }

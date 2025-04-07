@@ -1,50 +1,58 @@
 import React, { useState } from "react";
 import { UserManagement } from "./UserManagement";
 import { ProductManagement } from "./ProductManagement";
+import {
+  UserGroupIcon,
+  CubeIcon,
+  TruckIcon,
+  DocumentTextIcon,
+  ChartBarIcon
+} from '@heroicons/react/24/outline';
 
 export const AdminLayout = () => {
-  const [activeTab, setActiveTab] = useState("users"); // Default tab is 'users'
+  const [activeTab, setActiveTab] = useState("users");
+
+  const menuItems = [
+    { id: "users", name: "Quản lý tài khoản", icon: UserGroupIcon },
+    { id: "products", name: "Quản lý hàng hóa", icon: CubeIcon },
+    { id: "shipping", name: "Quản lý vận chuyển", icon: TruckIcon },
+    { id: "orders", name: "Quản lý đơn hàng", icon: DocumentTextIcon },
+    { id: "reports", name: "Báo cáo thống kê", icon: ChartBarIcon },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+      {/* Fixed Header */}
+      <div className="fixed-header">
+        <div className="admin-header">
+          <h1 className="admin-title">
+            {menuItems.find(item => item.id === activeTab)?.name || "Dashboard"}
+          </h1>
         </div>
-      </header>
-      <main>
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          {/* Tabs for switching between User Management and Product Management */}
-          <div className="mb-6">
-            <nav className="flex space-x-4">
-              <button
-                onClick={() => setActiveTab("users")}
-                className={`px-4 py-2 text-sm font-medium rounded-md ${
-                  activeTab === "users"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
-              >
-                Quản lý tài khoản
-              </button>
-              <button
-                onClick={() => setActiveTab("products")}
-                className={`px-4 py-2 text-sm font-medium rounded-md ${
-                  activeTab === "products"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
-              >
-                Quản lý hàng hóa
-              </button>
-            </nav>
-          </div>
+      </div>
 
-          {/* Render the active tab */}
-          <div>
-            {activeTab === "users" && <UserManagement />}
-            {activeTab === "products" && <ProductManagement />}
-          </div>
+      {/* Sidebar */}
+      <aside className="admin-sidebar">
+        <nav className="admin-sidebar-nav">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`admin-sidebar-item ${activeTab === item.id ? "active" : ""}`}
+            >
+              <item.icon className="admin-sidebar-icon" />
+              <span>{item.name}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Main Content */}
+      <main className="admin-content">
+        <div>
+          {activeTab === "users" && <UserManagement />}
+          {activeTab === "products" && <ProductManagement />}
+          {/* Add other components for shipping, orders, and reports when ready */}
         </div>
       </main>
     </div>
