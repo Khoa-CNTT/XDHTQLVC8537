@@ -94,10 +94,9 @@ export const UserForm = ({ isOpen, onClose, onSubmit, initialValues }) => {
                                             name="Role"
                                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                         >
-                                            <option value="user">User</option>
+                                            <option value="user">Người dùng</option>
+                                            <option value="staff">Nhân viên</option>
                                             <option value="admin">Admin</option>
-                                            <option value="admin">Nhân Viên</option>
-                                            <option value="admin">Người Dùng</option>
                                         </Field>
                                         {errors.Role && touched.Role && (
                                             <div className="mt-1 text-sm text-red-600">{errors.Role}</div>

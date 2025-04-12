@@ -4,32 +4,60 @@ import { AdminLayout } from './pages/admin/AdminLayout';
 import { UserManagement } from './pages/admin/UserManagement';
 import { ProductManagement } from './pages/admin/ProductManagement';
 import UserPage from './pages/user/UserPage';
-import LoginPage from './pages/auth/LoginPage'; // Import trang đăng nhập
-import RegisterPage from './pages/auth/RegisterPage'; // Import trang đăng ký
+import LoginPage from './pages/auth/LoginPage';
+import RegisterPage from './pages/auth/RegisterPage';
+import { useAuth } from './contexts/AuthContext';
 import './assets/App.css';
 
 function App() {
-  const isAuthenticated = !!localStorage.getItem('token'); // Check if user is logged in
+  const { auth } = useAuth();
+
+  // Show loading state while checking authentication
+  if (auth.isLoading) {
+    return <div className="loading-container">Loading...</div>;
+  }
 
   return (
     <BrowserRouter>
       <Routes>
-        {/* Route đăng nhập */}
-        <Route path="/login" element={<LoginPage />} />
-
-        {/* Route đăng ký */}
-        <Route path="/register" element={<RegisterPage />} />
-
-        {/* Route người dùng */}
+        {/* Login Route */}
         <Route
-          path="/"
-          element={isAuthenticated ? <UserPage /> : <Navigate to="/login" replace />}
+          path="/login"
+          element={
+            auth.isAuthenticated
+              ? <Navigate to={auth.userRole === 'admin' ? '/admin' : '/'} replace />
+              : <LoginPage />
+          }
         />
 
-        {/* Route admin */}
+        {/* Register Route */}
+        <Route
+          path="/register"
+          element={
+            auth.isAuthenticated
+              ? <Navigate to={auth.userRole === 'admin' ? '/admin' : '/'} replace />
+              : <RegisterPage />
+          }
+        />
+
+        {/* User Route */}
+        <Route
+          path="/"
+          element={
+            auth.isAuthenticated
+              ? <UserPage />
+              : <Navigate to="/login" replace />
+          }
+        />
+
+        {/* Admin Routes */}
         <Route
           path="/admin"
-          element={isAuthenticated ? <AdminLayout /> : <Navigate to="/login" replace />}
+          element={
+            auth.isAuthenticated && auth.userRole === 'admin'
+              ? <AdminLayout />
+              : <Navigate to={auth.isAuthenticated ? '/' : '/login'} replace />
+          }
         >
           <Route index element={<UserManagement />} />
           <Route path="products" element={<ProductManagement />} />

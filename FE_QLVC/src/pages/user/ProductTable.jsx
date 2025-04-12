@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 export const ProductTable = ({ products, onEdit, onDelete }) => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -74,17 +75,17 @@ export const ProductTable = ({ products, onEdit, onDelete }) => {
                                     <div className="admin-table-actions">
                                         <button
                                             onClick={() => onEdit(product)}
-                                            className="admin-table-button admin-table-button-edit"
+                                            className="admin-table-button admin-table-button-edit p-2 rounded-lg"
                                             title="Sửa"
                                         >
-                                            <span className="h-5 w-5">✏️</span>
+                                            <PencilIcon className="h-5 w-5" />
                                         </button>
                                         <button
                                             onClick={() => onDelete(product)}
-                                            className="admin-table-button admin-table-button-delete"
+                                            className="admin-table-button admin-table-button-delete p-2 rounded-lg"
                                             title="Xóa"
                                         >
-                                            <span className="h-5 w-5">🗑️</span>
+                                            <TrashIcon className="h-5 w-5" aria-hidden="true" />
                                         </button>
                                     </div>
                                 </td>

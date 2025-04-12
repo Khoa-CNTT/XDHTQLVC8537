@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { ProductTable } from "./ProductTable";
-import { ProductForm } from "./ProductForm";
+import { ProductTable } from "../user/ProductTable";
+import { ProductForm } from "../user/ProductForm";
 import { DeleteConfirm } from "../../components/layout/DeleteConfirm";
 import { productService } from "../../services/productService";
 import toast, { Toaster } from "react-hot-toast";
@@ -67,51 +67,64 @@ export const ProductManagement = () => {
 
   return (
     <div>
+      {/* Nút thêm hàng hóa */}
       <div className="sm:flex sm:items-center mb-6">
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+        <div className="sm:flex-none">
           <button
             type="button"
             onClick={() => {
               setSelectedProduct(null);
-              setIsFormOpen(true);
+              setIsFormOpen(!isFormOpen);
             }}
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className="admin-add-button"
           >
-            Thêm hàng hóa
+            {isFormOpen ? "Đóng form" : "Thêm hàng hóa"}
           </button>
         </div>
       </div>
 
+      {/* Hiển thị bảng dữ liệu */}
       {isLoading ? (
         <div className="flex justify-center my-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
         </div>
       ) : (
-        <ProductTable
-          products={products}
-          onEdit={(product) => {
-            setSelectedProduct(product);
-            setIsFormOpen(true);
-          }}
-          onDelete={(product) => {
-            setSelectedProduct(product);
-            setIsDeleteConfirmOpen(true);
-          }}
-        />
+        <>
+          <ProductTable
+            products={products}
+            onEdit={(product) => {
+              setSelectedProduct(product);
+              setIsFormOpen(true);
+            }}
+            onDelete={(product) => {
+              setSelectedProduct(product);
+              setIsDeleteConfirmOpen(true);
+            }}
+          />
+
+          {/* Hiển thị form thêm/sửa */}
+          {isFormOpen && (
+            <div className="mt-6 bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                {selectedProduct ? "Cập nhật hàng hóa" : "Thêm hàng hóa mới"}
+              </h3>
+              <ProductForm
+                isOpen={isFormOpen}
+                onClose={() => {
+                  setIsFormOpen(false);
+                  setSelectedProduct(null);
+                }}
+                onSubmit={handleSubmit}
+                initialValues={selectedProduct}
+                categories={categories}
+                properties={properties}
+              />
+            </div>
+          )}
+        </>
       )}
 
-      <ProductForm
-        isOpen={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setSelectedProduct(null);
-        }}
-        onSubmit={handleSubmit}
-        initialValues={selectedProduct}
-        categories={categories}
-        properties={properties}
-      />
-
+      {/* Xác nhận xóa */}
       <DeleteConfirm
         isOpen={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}
