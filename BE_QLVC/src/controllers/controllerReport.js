@@ -1,6 +1,49 @@
 const { connection } = require('../config/database');
 
 // Get all reports
+// Get revenue data by period (6 or 12 months)
+const getRevenueByPeriod = async (req, res) => {
+    const { period = 6 } = req.query;
+    const months = parseInt(period) || 6;
+
+    let conn;
+    try {
+        conn = await connection.getConnection();
+
+        // Get revenue data for the last N months
+        const [revenueData] = await conn.query(`
+            SELECT 
+                MONTH(dh.NgayTaoDon) AS month,
+                SUM(hh.DonGia * hh.SoLuong + dh.PhiGiaoHang) AS value
+            FROM DonHang dh
+            JOIN HangHoa hh ON dh.ID_HH = hh.ID_HH
+            WHERE dh.NgayTaoDon >= DATE_SUB(NOW(), INTERVAL ? MONTH)
+              AND dh.TrangThaiDonHang = 'Delivered'
+            GROUP BY MONTH(dh.NgayTaoDon)
+            ORDER BY MONTH(dh.NgayTaoDon)
+        `, [months]);
+
+        // Transform data into the format expected by the frontend
+        const formattedData = revenueData.map(item => ({
+            label: `T${item.month}`,
+            value: parseInt(item.value) || 0
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: formattedData
+        });
+    } catch (err) {
+        console.error('Error fetching revenue data:', err);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch revenue data'
+        });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
 const getAllReports = async (req, res) => {
     let conn;
     try {
@@ -199,5 +242,6 @@ module.exports = {
     createFinancialReport,
     createStaffReport,
     getFinancialReportById,
-    getStaffReportById
+    getStaffReportById,
+    getRevenueByPeriod
 };

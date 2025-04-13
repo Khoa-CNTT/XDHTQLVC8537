@@ -49,19 +49,16 @@ function App() {
               : <Navigate to="/login" replace />
           }
         />
-
-        {/* Admin Routes */}
+        
+        {/* Admin Routes - Requires authentication with admin role */}
         <Route
-          path="/admin"
+          path="/admin/*"
           element={
             auth.isAuthenticated && auth.userRole === 'admin'
               ? <AdminLayout />
-              : <Navigate to={auth.isAuthenticated ? '/' : '/login'} replace />
+              : <Navigate to="/login" replace />
           }
-        >
-          <Route index element={<UserManagement />} />
-          <Route path="products" element={<ProductManagement />} />
-        </Route>
+        />
       </Routes>
     </BrowserRouter>
   );

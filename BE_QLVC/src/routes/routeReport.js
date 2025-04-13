@@ -5,11 +5,15 @@ const {
     createFinancialReport,
     createStaffReport,
     getFinancialReportById,
-    getStaffReportById
+    getStaffReportById,
+    getRevenueByPeriod
 } = require('../controllers/controllerReport');
 
 // Get all reports
 router.get('/reports', getAllReports);
+
+// Get revenue data by period (for dashboard)
+router.get('/reports/revenue', getRevenueByPeriod);
 
 // Create financial report
 router.post('/reports/financial', createFinancialReport);

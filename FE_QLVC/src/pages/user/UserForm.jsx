@@ -18,12 +18,12 @@ const userSchema = Yup.object().shape({
 
 export const UserForm = ({ isOpen, onClose, onSubmit, initialValues }) => {
     return (
-        <Dialog open={isOpen} onClose={onClose} className="relative z-50">
-            <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-            <div className="fixed inset-0 flex items-center justify-center p-4">
-                <Dialog.Panel className="mx-auto max-w-md rounded-lg bg-white shadow-xl">
-                    <div className="border-b border-gray-200 px-6 py-4">
-                        <Dialog.Title className="text-lg font-medium text-gray-900">
+        <Dialog open={isOpen} onClose={onClose} className="user-form-dialog">
+            <div className="user-form-overlay" aria-hidden="true" />
+            <div className="user-form-container">
+                <Dialog.Panel className="user-form-panel">
+                    <div className="user-form-header">
+                        <Dialog.Title className="user-form-title">
                             {initialValues ? 'Cập nhật tài khoản' : 'Thêm tài khoản mới'}
                         </Dialog.Title>
                     </div>
@@ -38,83 +38,83 @@ export const UserForm = ({ isOpen, onClose, onSubmit, initialValues }) => {
                         onSubmit={onSubmit}
                     >
                         {({ errors, touched }) => (
-                            <Form className="p-6">
-                                <div className="space-y-4">
+                            <Form className="user-form-body">
+                                <div className="user-form-space">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="user-form-label">
                                             Email
                                         </label>
                                         <Field
                                             name="Email"
                                             type="email"
-                                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                            className="user-form-input"
                                             placeholder="example@email.com"
                                         />
                                         {errors.Email && touched.Email && (
-                                            <div className="mt-1 text-sm text-red-600">{errors.Email}</div>
+                                            <div className="user-form-error">{errors.Email}</div>
                                         )}
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="user-form-label">
                                             Mật khẩu
                                         </label>
                                         <Field
                                             name="Matkhau"
                                             type="password"
-                                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                            className="user-form-input"
                                             placeholder="••••••••"
                                         />
                                         {errors.Matkhau && touched.Matkhau && (
-                                            <div className="mt-1 text-sm text-red-600">{errors.Matkhau}</div>
+                                            <div className="user-form-error">{errors.Matkhau}</div>
                                         )}
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="user-form-label">
                                             Số điện thoại
                                         </label>
                                         <Field
                                             name="SDT"
                                             type="text"
-                                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                            className="user-form-input"
                                             placeholder="0123456789"
                                         />
                                         {errors.SDT && touched.SDT && (
-                                            <div className="mt-1 text-sm text-red-600">{errors.SDT}</div>
+                                            <div className="user-form-error">{errors.SDT}</div>
                                         )}
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="user-form-label">
                                             Vai trò
                                         </label>
                                         <Field
                                             as="select"
                                             name="Role"
-                                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                            className="user-form-select"
                                         >
                                             <option value="user">Người dùng</option>
                                             <option value="staff">Nhân viên</option>
                                             <option value="admin">Admin</option>
                                         </Field>
                                         {errors.Role && touched.Role && (
-                                            <div className="mt-1 text-sm text-red-600">{errors.Role}</div>
+                                            <div className="user-form-error">{errors.Role}</div>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="mt-6 flex items-center justify-end space-x-3">
+                                <div className="user-form-actions">
                                     <button
                                         type="button"
                                         onClick={onClose}
-                                        className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                        className="user-form-button-secondary"
                                     >
                                         Hủy
                                     </button>
                                     <button
                                         type="submit"
-                                        className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                        className="user-form-button-primary"
                                     >
                                         {initialValues ? 'Cập nhật' : 'Thêm mới'}
                                     </button>

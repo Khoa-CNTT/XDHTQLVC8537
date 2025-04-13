@@ -53,7 +53,7 @@ const RegisterPage = () => {
         <div className="register-container">
             <div className="register-content">
                 <div className="register-left" style={{
-                    backgroundImage: `linear-gradient(rgba(232, 235, 241, 0.8), rgba(229, 231, 239, 0.8)), url(${thongImg})`,
+                    backgroundImage: `linear-gradient(rgba(59, 130, 246, 0.8), rgba(30, 64, 175, 0.8)), url(${thongImg})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center'
                 }}>

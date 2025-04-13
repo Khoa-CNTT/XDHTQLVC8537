@@ -1,280 +1,309 @@
-import React, { useState, useEffect } from "react";
-import { UserTable } from "../user/UserTable";
-import { DeleteConfirm } from "../../components/layout/DeleteConfirm";
-import { authService } from "../../services/authService";
-import toast, { Toaster } from "react-hot-toast";
-import { Formik, Form, Field } from "formik";
-import * as Yup from "yup";
-
-const validationSchema = Yup.object().shape({
-  Email: Yup.string()
-    .email("Email không hợp lệ")
-    .required("Email là bắt buộc"),
-  MatKhau: Yup.string()
-    .min(6, "Mật khẩu phải có ít nhất 6 ký tự")
-    .required("Mật khẩu là bắt buộc"),
-  HoTen: Yup.string()
-    .required("Họ tên là bắt buộc"),
-  DiaChi: Yup.string()
-    .required("Địa chỉ là bắt buộc"),
-  SDT: Yup.string()
-    .matches(/^[0-9]+$/, "Số điện thoại chỉ được chứa số")
-    .min(10, "Số điện thoại phải có ít nhất 10 số")
-    .max(11, "Số điện thoại không được quá 11 số")
-    .required("Số điện thoại là bắt buộc"),
-  Role: Yup.string()
-    .oneOf(["admin", "staff", "user"], "Vai trò không hợp lệ")
-    .required("Vai trò là bắt buộc"),
-});
+import React, { useState, useEffect } from 'react';
+import './UserManagement.css';
+import { authService } from '../../services/authService';
+import UserEditModal from '../../components/modals/UserEditModal';
+import UserAddModal from '../../components/modals/UserAddModal';
 
 export const UserManagement = () => {
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [nameFilter, setNameFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+    // Modal state variables
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
+  // Fetch users function (reusable)
   const fetchUsers = async () => {
     try {
-      setIsLoading(true);
-      const data = await authService.getUsers();
-      setUsers(data);
-    } catch (error) {
-      toast.error(error.message || "Không thể tải danh sách tài khoản");
+      setLoading(true);
+      // Use the getUsers method from authService
+      const userData = await authService.getUsers();
+      console.log('API response:', userData);
+      
+      // Filter users based on name if nameFilter is provided
+      const filteredData = nameFilter 
+        ? userData.filter(user => 
+            (user.HoTen || user.name || '').toLowerCase().includes(nameFilter.toLowerCase())
+          )
+        : userData;
+      
+      // Apply pagination to the filtered data
+      const paginatedData = filteredData.slice(
+        (currentPage - 1) * rowsPerPage,
+        currentPage * rowsPerPage
+      );
+      
+      setUsers(paginatedData);
+      
+      // Calculate total pages based on filtered data length
+      const total = Math.ceil(filteredData.length / rowsPerPage) || 1;
+      setTotalPages(total);
+      
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
+      setError('Không thể tải dữ liệu người dùng. Vui lòng thử lại sau.');
+      setUsers([]);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-
+  // Call fetchUsers when component mounts or dependencies change
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [currentPage, rowsPerPage, nameFilter]);
 
-  const handleSubmit = async (values, { resetForm, setSubmitting }) => {
-    try {
-      const userData = {
-        Email: values.Email,
-        MatKhau: values.MatKhau,
-        HoTen: values.HoTen,
-        DiaChi: values.DiaChi,
-        SDT: values.SDT,
-        Role: values.Role,
-      };
-
-      if (selectedUser) {
-        // Update existing user
-        await authService.updateUser(selectedUser.ID_TK, userData);
-        toast.success("Cập nhật tài khoản thành công");
-      } else {
-        // Create new user
-        await authService.createUser(userData);
-        toast.success("Thêm tài khoản thành công");
+  // Handle delete confirmation
+  const handleDelete = async (userId) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa tài khoản này?')) {
+      try {
+        await authService.deleteUser(userId);
+        // Refresh the user list
+        fetchUsers();
+        alert('Xóa tài khoản thành công!');
+      } catch (err) {
+        console.error('Failed to delete user:', err);
+        alert('Không thể xóa tài khoản. Vui lòng thử lại sau.');
       }
-
-      await fetchUsers(); // Refresh danh sách người dùng
-      setIsFormOpen(false);
-      resetForm();
-    } catch (error) {
-      toast.error(error.response?.data?.error || "Có lỗi xảy ra");
-    } finally {
-      setSubmitting(false);
+    }
+  };  // Handle edit - open edit modal
+  const handleEdit = (userId) => {
+    try {
+      // Find user by ID
+      const userToEdit = users.find(user => user.ID_TK === userId);
+      if (!userToEdit) {
+        throw new Error('Không tìm thấy thông tin người dùng');
+      }
+      
+      // Set current user and open edit modal
+      setCurrentUser(userToEdit);
+      setIsEditModalOpen(true);
+    } catch (err) {
+      console.error('Error opening edit modal:', err);
+      alert('Không thể mở form chỉnh sửa. Vui lòng thử lại sau.');
     }
   };
-
-  const handleDelete = async () => {
+  
+  // Handle form submission for editing user
+  const handleEditSubmit = async (userData) => {
     try {
-      await authService.deleteUser(selectedUser.ID_TK);
-      toast.success("Xóa tài khoản thành công");
-      fetchUsers();
-      setIsDeleteConfirmOpen(false);
-    } catch (error) {
-      toast.error(error.message || "Có lỗi xảy ra");
+      if (!currentUser || !currentUser.ID_TK) {
+        throw new Error('Không tìm thấy thông tin người dùng');
+      }
+      
+      await authService.updateUser(currentUser.ID_TK, userData);
+      fetchUsers(); // Refresh the user list
+      return true;
+    } catch (err) {
+      console.error('Error updating user:', err);
+      throw new Error('Không thể cập nhật thông tin người dùng. Vui lòng thử lại sau.');
     }
+  };
+    // Handle adding a new user - open add modal
+  const handleAdd = () => {
+    setCurrentUser(null); // Reset current user for a new user form
+    setIsAddModalOpen(true);
+  };
+  
+  // Handle form submission for adding user
+  const handleAddSubmit = async (userData) => {
+    try {
+      await authService.createUser(userData);
+      fetchUsers(); // Refresh the user list
+      return true;
+    } catch (err) {
+      console.error('Error creating user:', err);
+      throw new Error('Không thể tạo người dùng mới. Vui lòng thử lại sau.');
+    }
+  };
+  
+  // Handle search with debounce
+  const handleSearchChange = (e) => {
+    setNameFilter(e.target.value);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+  
+  // Handle pagination
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+  
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
+  // Handle rows per page change
+  const handleRowsPerPageChange = (newRowsPerPage) => {
+    setRowsPerPage(newRowsPerPage);
+    setCurrentPage(1); // Reset to first page when changing rows per page
   };
 
   return (
-    <div>
-      <div className="sm:flex sm:items-center mb-6">
-        <div className="sm:flex-none">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedUser(null);
-              setIsFormOpen(!isFormOpen);
-            }}
-            className="admin-add-button"
-          >
-            {isFormOpen ? "Đóng form" : "Thêm tài khoản"}
-          </button>
-        </div>
+    <div className="user-management-container">
+      <div className="user-management-header">
+        <h1 className="user-management-title">Quản lý tài khoản</h1>
       </div>
-
-      {isLoading ? (
-        <div className="flex justify-center my-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-        </div>
-      ) : (
-        <>
-          <UserTable
-            users={users}
-            onEdit={(user) => {
-              setSelectedUser({
-                ...user,
-                MatKhau: "",
-              });
-              setIsFormOpen(true);
-            }}
-            onDelete={(user) => {
-              setSelectedUser(user);
-              setIsDeleteConfirmOpen(true);
-            }}
+        {/* Search and Add button row */}      <div className="user-management-actions">
+        <div className="search-wrapper">
+          <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="text"
+            placeholder="Họ và tên"
+            className="search-input"
+            value={nameFilter}
+            onChange={handleSearchChange}
           />
-
-          {isFormOpen && (
-            <div className="mt-6 bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {selectedUser ? "Cập nhật tài khoản" : "Thêm tài khoản mới"}
-              </h3>
-              <Formik
-                initialValues={{
-                  Email: selectedUser?.Email || "",
-                  MatKhau: "",
-                  HoTen: selectedUser?.HoTen || "",
-                  DiaChi: selectedUser?.DiaChi || "",
-                  SDT: selectedUser?.SDT || "",
-                  Role: selectedUser?.Role || "user",
-                }}
-                enableReinitialize={true}
-                validationSchema={validationSchema}
-                onSubmit={handleSubmit}
-              >
-                {({ isSubmitting, errors, touched }) => (
-                  <Form className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Email
-                        </label>
-                        <Field
-                          name="Email"
-                          type="email"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        />
-                        {errors.Email && touched.Email && (
-                          <div className="mt-1 text-sm text-red-600">{errors.Email}</div>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Mật khẩu
-                        </label>
-                        <Field
-                          name="MatKhau"
-                          type="password"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        />
-                        {errors.MatKhau && touched.MatKhau && (
-                          <div className="mt-1 text-sm text-red-600">{errors.MatKhau}</div>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Số điện thoại
-                        </label>
-                        <Field
-                          name="SDT"
-                          type="text"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        />
-                        {errors.SDT && touched.SDT && (
-                          <div className="mt-1 text-sm text-red-600">{errors.SDT}</div>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Vai trò
-                        </label>
-                        <Field
-                          as="select"
-                          name="Role"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        >
-                          <option value="user">Người dùng</option>
-                          <option value="admin">Admin</option>
-                          <option value="staff">Nhân viên</option>
-                        </Field>
-                        {errors.Role && touched.Role && (
-                          <div className="mt-1 text-sm text-red-600">{errors.Role}</div>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Họ tên
-                        </label>
-                        <Field
-                          name="HoTen"
-                          type="text"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        />
-                        {errors.HoTen && touched.HoTen && (
-                          <div className="mt-1 text-sm text-red-600">{errors.HoTen}</div>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Địa chỉ
-                        </label>
-                        <Field
-                          name="DiaChi"
-                          type="text"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        />
-                        {errors.DiaChi && touched.DiaChi && (
-                          <div className="mt-1 text-sm text-red-600">{errors.DiaChi}</div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end space-x-3 mt-4">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsFormOpen(false);
-                          setSelectedUser(null);
-                        }}
-                        className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-                      >
-                        Hủy
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {selectedUser ? "Cập nhật" : "Thêm mới"}
-                      </button>
-                    </div>
-                  </Form>
-                )}
-              </Formik>
-            </div>
-          )}
-        </>
+        </div>
+        
+        <button className="add-user-button" onClick={handleAdd}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="8.5" cy="7" r="4"></circle>
+            <line x1="20" y1="8" x2="20" y2="14"></line>
+            <line x1="23" y1="11" x2="17" y2="11"></line>
+          </svg>
+          <span>Thêm</span>
+        </button>
+      </div>
+      
+      {/* Error message */}
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
       )}
-
-      <DeleteConfirm
-        isOpen={isDeleteConfirmOpen}
-        onClose={() => setIsDeleteConfirmOpen(false)}
-        onConfirm={handleDelete}
-        title="Xóa tài khoản"
-        message={`Bạn có chắc chắn muốn xóa tài khoản ${selectedUser?.Email}?`}
+        {/* Users table */}
+      <div className="users-table-container">
+        {loading ? (
+          <div className="loading-spinner">Loading...</div>
+        ) : (
+          <table className="users-table">
+            <thead>
+              <tr>
+                <th>Họ và tên</th>
+                <th>Email</th>
+                <th>Số điện thoại</th>
+                <th>Địa chỉ</th>
+                <th>Vai trò</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="no-data-message">
+                    {error || 'Không có dữ liệu người dùng'}
+                  </td>
+                </tr>
+              ) : (                users.map((user, index) => (
+                  <tr key={user.ID_TK || user.id || index} className={index % 2 === 0 ? 'row-highlighted' : ''}>
+                    <td>{user.HoTen || user.name || 'N/A'}</td>
+                    <td>{user.Email || user.email || 'N/A'}</td>
+                    <td>{user.Phone || user.SDT || user.phone || 'N/A'}</td>
+                    <td>{user.DiaChi || user.address || 'N/A'}</td>
+                    <td>{user.Role || user.role || 'N/A'}</td>                    
+                    <td className="action-cell">
+                      <button 
+                        className="edit-button"
+                        onClick={() => handleEdit(user.ID_TK)}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        <span>Sửa</span>
+                      </button>
+                      <button 
+                        className="delete-button"
+                        onClick={() => handleDelete(user.ID_TK)}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="15" y1="9" x2="9" y2="15"></line>
+                          <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                        <span>Xoá</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan="6">
+                  <div className="pagination-controls">
+                    <div className="rows-per-page">
+                      <span>Bảng ghi mỗi trang:</span>
+                      <div className="select-wrapper">
+                        <select 
+                          value={rowsPerPage} 
+                          onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
+                        >
+                          <option value="5">5</option>
+                          <option value="10">10</option>
+                          <option value="20">20</option>
+                          <option value="50">50</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="page-info">
+                      {users.length > 0 
+                        ? `${(currentPage - 1) * rowsPerPage + 1}-${Math.min(currentPage * rowsPerPage, users.length)} of ${users.length}` 
+                        : '0-0 of 0'}
+                    </div>
+                    <div className="pagination-buttons">
+                      <button 
+                        className="pagination-button" 
+                        onClick={handlePrevPage}
+                        disabled={currentPage === 1}
+                      >
+                        <svg width="24" height="24" viewBox="0 0 24 24">
+                          <path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59z" />
+                        </svg>
+                      </button>
+                      <button 
+                        className="pagination-button"
+                        onClick={handleNextPage}
+                        disabled={currentPage >= totalPages}
+                      >
+                        <svg width="24" height="24" viewBox="0 0 24 24">
+                          <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6-6-6z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        )}      </div>
+        {/* User Edit Modal */}
+      <UserEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        user={currentUser}
+        onSubmit={handleEditSubmit}
       />
-      <Toaster position="top-right" />
+
+      {/* User Add Modal */}
+      <UserAddModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSubmit={handleAddSubmit}
+      />
     </div>
   );
 };
