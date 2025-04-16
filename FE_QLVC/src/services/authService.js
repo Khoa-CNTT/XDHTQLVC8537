@@ -39,12 +39,17 @@ const getUsers = async () => {
         // More detailed error information
         if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
             throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng hoặc máy chủ đã khởi động chưa.');
-        }
-
-        // Handle specific HTTP status codes
+        }        // Handle specific HTTP status codes
         if (error.response) {
             if (error.response.status === 401) {
-                throw new Error('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
+                // Clear token and userInfo from localStorage
+                localStorage.removeItem('token');
+                localStorage.removeItem('userInfo');
+                
+                // Dispatch an event that the app can listen for to redirect user
+                window.dispatchEvent(new CustomEvent('auth-error', { detail: 'Token expired' }));
+                
+                throw new Error('Phiên đăng nhập đã hết hạn, bạn sẽ được đưa về trang đăng nhập');
             }
             throw new Error(error.response.data?.message || 'Có lỗi xảy ra khi tải dữ liệu');
         }

@@ -14,9 +14,8 @@ const authMiddleware = (req, res, next) => {
 
     // Extract the token
     const token = authHeader.split(' ')[1];
-    
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key');
+      // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY || 'your_jwt_secret_key');
     
     // Add user data to request
     req.user = decoded;

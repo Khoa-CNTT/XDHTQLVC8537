@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'; // Import useCallback
-import { orderService } from '../../services/orderSevice.js';
-import { productService } from '../../services/productService.js';
+import { orderService } from '../../services/orderService.js'; 
 import { authService } from '../../services/authService.js'; // Ensure this import exists
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,20 +11,23 @@ import './UserPage.css';
 const UserPage = () => {
     const navigate = useNavigate();
     const { auth, logout } = useAuth();
-    const [activeItem, setActiveItem] = useState('main');
-    const [user, setUser] = useState(null); // Holds detailed user info (KH or NV) + base info
+    const [activeItem, setActiveItem] = useState('main');    const [user, setUser] = useState(null); // Holds detailed user info (KH or NV) + base info
     const [employees, setEmployees] = useState([]);
-    const [products, setProducts] = useState([]);
     const [orders, setOrders] = useState([]); // Staff orders
     const [userOrders, setUserOrders] = useState([]); // Customer orders
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true); // Start loading true
-    const [order, setOrder] = useState({
+    const [showPaymentForm, setShowPaymentForm] = useState(false);
+    const [createdOrder, setCreatedOrder] = useState(null);    const [order, setOrder] = useState({
         ID_NV: '',
         receiverName: '',
         receiverAddress: '',
         receiverPhone: '',
-        ID_HH: '',
+        productName: '',
+        weight: '',
+        productType: '',
+        productCharacteristics: [],
+        codAmount: 0,
         notes: ''
     });
 
@@ -54,11 +56,8 @@ const UserPage = () => {
                 // Ensure HoTen is set correctly
                 HoTen: userRole === 'staff' ? specificUserData.Ten_NV : specificUserData.Ten_KH,
             };
-            setUser(combinedUserData); // Set the detailed user state
-
-            // Fetch additional data only after user data is confirmed
+            setUser(combinedUserData); // Set the detailed user state            // Fetch additional data only after user data is confirmed
             const empPromise = authService.getNhanVien();
-            const prodPromise = productService.getProducts();
             let ordersPromise;
 
             if (userRole === 'staff' && combinedUserData.ID_NV) {
@@ -67,17 +66,13 @@ const UserPage = () => {
                 ordersPromise = orderService.getOrdersByCustomer(combinedUserData.ID_KH);
             } else {
                 ordersPromise = Promise.resolve([]); // No orders to fetch or ID missing
-            }
-
-            // Wait for all promises
-            const [empData, prodData, ordersData] = await Promise.all([
+            }            // Wait for all promises
+            const [empData, ordersData] = await Promise.all([
                 empPromise,
-                prodPromise,
                 ordersPromise
             ]);
 
             setEmployees(empData || []);
-            setProducts(prodData || []);
 
             if (userRole === 'staff') {
                 setOrders(ordersData || []);
@@ -111,14 +106,78 @@ const UserPage = () => {
 
     const handleItemClick = (item) => {
         setActiveItem(item);
-    };
-
-    const handleInputChange = (e) => {
+    };    const handleInputChange = (e) => {
         const { name, value } = e.target;
         setOrder((prev) => ({ ...prev, [name]: value }));
     };
+    
+    // Hàm xử lý cho các checkbox tính chất hàng hóa
+    const handleCharacteristicsChange = (e) => {
+        const { value, checked } = e.target;
+        setOrder(prev => {
+            if (checked) {
+                // Thêm vào mảng nếu được chọn
+                return {
+                    ...prev,
+                    productCharacteristics: [...prev.productCharacteristics, value]
+                };
+            } else {
+                // Loại bỏ khỏi mảng nếu bỏ chọn
+                return {
+                    ...prev,
+                    productCharacteristics: prev.productCharacteristics.filter(item => item !== value)
+                };
+            }
+        });
+    };// Hàm tính phí vận chuyển dựa trên trọng lượng
+    const calculateShippingFee = () => {
+        const weight = parseFloat(order.weight) || 0;
+        // Tính phí giao hàng: 30.000đ cơ bản + 5.000đ cho mỗi kg
+        const baseFee = 30000;
+        const additionalFee = Math.ceil(weight) * 5000;
+        return baseFee + additionalFee;
+    };
 
-    const handleOrderSubmit = async (e) => {
+    // Hàm định dạng tiền tệ VND
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('vi-VN', { 
+            style: 'currency', 
+            currency: 'VND',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount);
+    };
+
+    // Xử lý đóng form thanh toán
+    const handleClosePaymentForm = () => {
+        setShowPaymentForm(false);
+        setCreatedOrder(null);
+    };
+
+    // Xử lý thanh toán
+    const handlePayment = async (paymentMethod) => {
+        if (!createdOrder) return;
+        
+        try {
+            setLoading(true);
+            // Đây là nơi bạn sẽ gọi API thanh toán thực tế
+            // Ví dụ: await paymentService.processPayment(createdOrder.id, paymentMethod);
+            
+            alert(`Thanh toán thành công bằng ${paymentMethod}!`);
+            setShowPaymentForm(false);
+            setCreatedOrder(null);
+            
+            // Làm mới danh sách đơn hàng
+            if (user && user.ID_KH) {
+                const updatedOrders = await orderService.getOrdersByCustomer(user.ID_KH);
+                setUserOrders(updatedOrders || []);
+            }
+        } catch (err) {
+            setError(`Lỗi thanh toán: ${err.message || 'Không xác định'}`);
+        } finally {
+            setLoading(false);
+        }
+    };    const handleOrderSubmit = async (e) => {
         e.preventDefault();
         // Ensure user and user.ID_KH exist before proceeding
         if (!user || !user.ID_KH) {
@@ -129,59 +188,104 @@ const UserPage = () => {
         setLoading(true);
 
         try {
-            const orderData = {
-                ID_NV: parseInt(order.ID_NV),
-                ID_KH: user.ID_KH,
-                ID_HH: parseInt(order.ID_HH),
-                receiverName: order.receiverName,
-                receiverAddress: order.receiverAddress,
-                receiverPhone: order.receiverPhone,
-                MaVanDon: `VD${Date.now()}`,
-                NgayTaoDon: new Date().toISOString().slice(0, 19).replace('T', ' '),
-                NgayGiaoDuKien: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
-                    .toISOString()
-                    .slice(0, 19)
-                    .replace('T', ' '),
-                TrangThaiDonHang: 'Pending',
-                PhiGiaoHang: 50.0,
-                GhiChu: order.notes,
+            // Tạo đối tượng hàng hóa trước
+            const productData = {
+                tenHH: order.productName,
+                trongLuong: parseFloat(order.weight),
+                loaiHH: parseInt(order.productType),
+                donGia: 0, // Sẽ được tính ở backend hoặc người dùng có thể nhập
+                soLuong: 1
             };
 
-            await orderService.createOrder(orderData);
+            // Chuẩn hóa dữ liệu cho phù hợp với API createOrder
+            // Lưu ý: nhanVienId sẽ được chỉ định bởi nhân viên khi họ nhận đơn hàng
+            const orderData = {
+                khachHangId: user.ID_KH,
+                hangHoa: productData, // Gửi dữ liệu hàng hóa trực tiếp
+                nguoiNhan: {
+                    ten: order.receiverName,
+                    diaChi: order.receiverAddress,
+                    sdt: order.receiverPhone
+                },                phiGiaoHang: calculateShippingFee(),
+                tienHang: 0, // Nếu cần
+                tienThuHo: parseInt(order.codAmount) || 0, 
+                ghiChu: order.notes,
+                trangThaiDonHang: 'Đang chờ xử lý' // Trạng thái ban đầu khi tạo đơn
+            };
+
+            const response = await orderService.createOrder(orderData);
+            
+            // Lưu thông tin đơn hàng vừa tạo
+            setCreatedOrder(response.data);
+            
+            // Hiển thị form thanh toán
+            setShowPaymentForm(true);
 
             // Refresh user orders
             const updatedOrders = await orderService.getOrdersByCustomer(user.ID_KH);
-            setUserOrders(updatedOrders);
+            setUserOrders(updatedOrders || []);
 
-            alert('Đơn hàng đã được tạo thành công!');
+            // Reset form
             setOrder({
                 ID_NV: '',
                 receiverName: '',
                 receiverAddress: '',
                 receiverPhone: '',
-                ID_HH: '',
+                productName: '',
+                weight: '',
+                productType: '',
+                codAmount: 0,
                 notes: '',
             });
         } catch (err) {
-            setError(err || 'Lỗi khi tạo đơn hàng');
+            setError(err.message || 'Lỗi khi tạo đơn hàng');
             console.error('Error creating order:', err);
         } finally {
             setLoading(false);
         }
+    };    const handleAcceptOrder = async (idDH) => {
+        if (!user || !user.ID_NV) {
+            setError('Bạn cần đăng nhập với vai trò nhân viên để có thể nhận đơn hàng.');
+            return;
+        }
+        
+        if (!window.confirm('Bạn có muốn nhận đơn hàng này không?')) {
+            return;
+        }
+        
+        try {
+            setLoading(true);
+            
+            // Cập nhật đơn hàng với ID của nhân viên hiện tại và trạng thái "Đã nhận hàng"
+            await orderService.acceptOrder(idDH, user.ID_NV);
+            
+            // Refresh danh sách đơn hàng sau khi cập nhật
+            const updatedOrders = await orderService.getOrdersByStaff(user.ID_NV);
+            setOrders(updatedOrders || []);
+            
+            alert('Đã nhận đơn hàng thành công!');
+        } catch (err) {
+            setError(err.message || 'Lỗi khi nhận đơn hàng');
+            console.error('Error accepting order:', err);
+        } finally {
+            setLoading(false);
+        }
     };
-
+    
     const handleStatusChange = async (idDH, TrangThaiDonHang) => {
         try {
             setLoading(true);
             await orderService.updateOrderStatus(idDH, TrangThaiDonHang);
-            setOrders((prev) =>
-                prev.map((order) =>
-                    order.ID_DH === idDH ? { ...order, TrangThaiDonHang } : order
-                )
-            );
+            
+            // Refresh danh sách đơn hàng sau khi cập nhật
+            if (user && user.ID_NV) {
+                const updatedOrders = await orderService.getOrdersByStaff(user.ID_NV);
+                setOrders(updatedOrders || []);
+            }
+            
             alert('Cập nhật trạng thái thành công!');
         } catch (err) {
-            setError(err || 'Lỗi khi cập nhật trạng thái');
+            setError(err.message || 'Lỗi khi cập nhật trạng thái');
             console.error('Error updating status:', err);
         } finally {
             setLoading(false);
@@ -261,10 +365,55 @@ const UserPage = () => {
                     {/* Render content based on activeItem and ensure user exists */}
                     {activeItem === 'main' && user && (
                         <div className="order-form-container">
-                            {/* Staff View */}
-                            {user.Role === 'staff' && (
+                            {/* Staff View */}                            {user.Role === 'staff' && (
                                 <>
-                                    <h2 className="order-form-title">Danh sách đơn hàng</h2>
+                                    <h2 className="order-form-title">Đơn hàng đang chờ xác nhận</h2>
+                                    <table className="order-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Mã Vận Đơn</th>
+                                                <th>Khách Hàng</th>
+                                                <th>Hàng Hóa</th>
+                                                <th>Trọng lượng</th>
+                                                <th>Người Nhận</th>
+                                                <th>Địa chỉ</th>
+                                                <th>SĐT</th>
+                                                <th>Thu hộ (COD)</th>
+                                                <th>Ngày tạo đơn</th>
+                                                <th>Hành Động</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>                                            {orders.filter(order => order.TrangThaiDonHang === 'Đang chờ xử lý').map((order) => (
+                                                <tr key={order.ID_DH} className="waiting-order-row">
+                                                    <td>{order.MaVanDon}</td>
+                                                    <td>{order.TenKhachHang}</td>
+                                                    <td>{order.TenHH}</td>
+                                                    <td>{order.TrongLuong} kg</td>
+                                                    <td>{order.TenNguoiNhan || order.Ten_NN}</td>
+                                                    <td>{order.DiaChiNN}</td>
+                                                    <td>{order.SdtNguoiNhan}</td>
+                                                    <td>{formatCurrency(order.TienThuHo || 0)}</td>
+                                                    <td>{new Date(order.NgayTaoDon).toLocaleDateString()}</td>
+                                                    <td>
+                                                        <button
+                                                            className="accept-order-btn"
+                                                            onClick={() => handleAcceptOrder(order.ID_DH)}
+                                                            disabled={loading}
+                                                        >
+                                                            Nhận đơn hàng
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {orders.filter(order => order.TrangThaiDonHang === 'Đang chờ xử lý').length === 0 && (
+                                                <tr>
+                                                    <td colSpan="10" className="no-data">Không có đơn hàng nào đang chờ xử lý</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                    
+                                    <h2 className="order-form-title mt-4">Danh sách đơn hàng đang xử lý</h2>
                                     <table className="order-table">
                                         <thead>
                                             <tr>
@@ -273,30 +422,42 @@ const UserPage = () => {
                                                 <th>Hàng Hóa</th>
                                                 <th>Người Nhận</th>
                                                 <th>Trạng Thái</th>
+                                                <th>Ngày tạo đơn</th>
                                                 <th>Hành Động</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {orders.map((order) => (
+                                            {orders.filter(order => order.TrangThaiDonHang !== 'Chờ xác nhận').map((order) => (
                                                 <tr key={order.ID_DH}>
                                                     <td>{order.MaVanDon}</td>
-                                                    <td>{order.Ten_KH}</td>
+                                                    <td>{order.TenKhachHang}</td>
                                                     <td>{order.TenHH}</td>
-                                                    <td>{order.Ten_NN}</td>
+                                                    <td>{order.TenNguoiNhan || order.Ten_NN}</td>
                                                     <td>{order.TrangThaiDonHang}</td>
-                                                    <td>
-                                                        <select
+                                                    <td>{new Date(order.NgayTaoDon).toLocaleDateString()}</td>
+                                                    <td>                                                        <select
                                                             value={order.TrangThaiDonHang}
                                                             onChange={(e) => handleStatusChange(order.ID_DH, e.target.value)}
                                                             disabled={loading}
                                                         >
-                                                            <option value="Pending">Đang Chờ</option>
-                                                            <option value="Delivered">Đã Giao</option>
-                                                            <option value="Cancelled">Đã Hủy</option>
+                                                            <option value="Đang chờ xử lý">Đang chờ xử lý</option>
+                                                            <option value="Đã nhận hàng">Đã nhận hàng</option>
+                                                            <option value="Đang lấy">Đang lấy</option>
+                                                            <option value="Đã lấy">Đã lấy</option>
+                                                            <option value="Đang vận chuyển">Đang vận chuyển</option>
+                                                            <option value="Đang giao">Đang giao</option>
+                                                            <option value="Đã giao">Đã giao</option>
+                                                            <option value="Giao thất bại">Giao thất bại</option>
+                                                            <option value="Huỷ giao">Huỷ giao</option>
                                                         </select>
                                                     </td>
                                                 </tr>
                                             ))}
+                                            {orders.filter(order => order.TrangThaiDonHang !== 'Chờ xác nhận').length === 0 && (
+                                                <tr>
+                                                    <td colSpan="7" className="no-data">Không có đơn hàng nào đang xử lý</td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
 
@@ -330,104 +491,372 @@ const UserPage = () => {
                                     </table>
                                 </>
                             )}
-                            {/* User View */}
-                            {user.Role === 'user' && (
+                            {/* User View */}                            {user.Role === 'user' && (
                                 <>
                                     <h2 className="order-form-title">Tạo đơn hàng vận chuyển</h2>
                                     {/* Pass user.ID_KH safely */}
                                     <form onSubmit={handleOrderSubmit} className="order-form">
-                                        <div className="form-group">
-                                            <label>Nhân viên phụ trách</label>
-                                            <select
-                                                name="ID_NV"
-                                                value={order.ID_NV}
-                                                onChange={handleInputChange}
-                                                className="form-input"
-                                                required
-                                                disabled={loading}
-                                            >
-                                                <option value="">Chọn nhân viên</option>
-                                                {employees.map((emp) => (
-                                                    <option key={emp.ID_NV} value={emp.ID_NV}>
-                                                        {emp.Ten_NV}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                        <div className="form-section">
+                                            <h3 className="form-section-title">Thông tin người nhận</h3>
+                                            <div className="form-group">
+                                                <label>Tên người nhận <span className="required">*</span></label>
+                                                <input
+                                                    type="text"
+                                                    name="receiverName"
+                                                    value={order.receiverName}
+                                                    onChange={handleInputChange}
+                                                    className="form-input"
+                                                    placeholder="Nhập tên người nhận"
+                                                    required
+                                                    disabled={loading}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Địa chỉ người nhận <span className="required">*</span></label>
+                                                <input
+                                                    type="text"
+                                                    name="receiverAddress"
+                                                    value={order.receiverAddress}
+                                                    onChange={handleInputChange}
+                                                    className="form-input"
+                                                    placeholder="Nhập đầy đủ địa chỉ người nhận"
+                                                    required
+                                                    disabled={loading}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Số điện thoại người nhận <span className="required">*</span></label>
+                                                <input
+                                                    type="tel"
+                                                    name="receiverPhone"
+                                                    value={order.receiverPhone}
+                                                    onChange={handleInputChange}
+                                                    className="form-input"
+                                                    placeholder="Nhập số điện thoại người nhận"
+                                                    required
+                                                    disabled={loading}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="form-group">
-                                            <label>Tên người nhận</label>
-                                            <input
-                                                type="text"
-                                                name="receiverName"
-                                                value={order.receiverName}
-                                                onChange={handleInputChange}
-                                                className="form-input"
-                                                placeholder="Nhập tên người nhận"
-                                                required
-                                                disabled={loading}
-                                            />
+
+                                        <div className="form-section">
+                                            <h3 className="form-section-title">Thông tin hàng hóa</h3>
+                                            <div className="form-group">
+                                                <label>Tên hàng hóa <span className="required">*</span></label>
+                                                <input
+                                                    type="text"
+                                                    name="productName"
+                                                    value={order.productName}
+                                                    onChange={handleInputChange}
+                                                    className="form-input"
+                                                    placeholder="Nhập tên hàng hóa"
+                                                    required
+                                                    disabled={loading}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Trọng lượng (kg) <span className="required">*</span></label>
+                                                <input
+                                                    type="number"
+                                                    name="weight"
+                                                    value={order.weight}
+                                                    onChange={handleInputChange}
+                                                    className="form-input"
+                                                    placeholder="Nhập trọng lượng hàng hóa"
+                                                    min="0.1"
+                                                    step="0.1"
+                                                    required
+                                                    disabled={loading}
+                                                />
+                                            </div>                                            <div className="form-group">
+                                                <label>Loại hàng <span className="required">*</span></label>
+                                                <div className="checkbox-group">
+                                                    <div className="checkbox-item">
+                                                        <input 
+                                                            type="radio" 
+                                                            id="food" 
+                                                            name="productType" 
+                                                            value="1"
+                                                            checked={order.productType === "1"}
+                                                            onChange={handleInputChange}
+                                                            disabled={loading}
+                                                            required
+                                                        />
+                                                        <label htmlFor="food">Thực phẩm</label>
+                                                    </div>
+                                                    <div className="checkbox-item">
+                                                        <input 
+                                                            type="radio" 
+                                                            id="clothing" 
+                                                            name="productType" 
+                                                            value="2"
+                                                            checked={order.productType === "2"}
+                                                            onChange={handleInputChange}
+                                                            disabled={loading}
+                                                        />
+                                                        <label htmlFor="clothing">Quần áo</label>
+                                                    </div>
+                                                    <div className="checkbox-item">
+                                                        <input 
+                                                            type="radio" 
+                                                            id="electronics" 
+                                                            name="productType" 
+                                                            value="3"
+                                                            checked={order.productType === "3"}
+                                                            onChange={handleInputChange}
+                                                            disabled={loading}
+                                                        />
+                                                        <label htmlFor="electronics">Đồ điện tử</label>
+                                                    </div>
+                                                    <div className="checkbox-item">
+                                                        <input 
+                                                            type="radio" 
+                                                            id="cosmetics" 
+                                                            name="productType" 
+                                                            value="4"
+                                                            checked={order.productType === "4"}
+                                                            onChange={handleInputChange}
+                                                            disabled={loading}
+                                                        />
+                                                        <label htmlFor="cosmetics">Mỹ phẩm</label>
+                                                    </div>
+                                                    <div className="checkbox-item">
+                                                        <input 
+                                                            type="radio" 
+                                                            id="other" 
+                                                            name="productType" 
+                                                            value="5"
+                                                            checked={order.productType === "5"}
+                                                            onChange={handleInputChange}
+                                                            disabled={loading}
+                                                        />
+                                                        <label htmlFor="other">Khác</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Tính chất hàng hóa <span className="required">*</span></label>
+                                                <div className="checkbox-group">
+                                                    <div className="checkbox-item">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            id="highValue" 
+                                                            name="productCharacteristics" 
+                                                            value="highValue"
+                                                            checked={order.productCharacteristics?.includes('highValue')}
+                                                            onChange={handleCharacteristicsChange}
+                                                            disabled={loading}
+                                                        />
+                                                        <label htmlFor="highValue">Giá trị cao</label>
+                                                    </div>
+                                                    <div className="checkbox-item">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            id="fragile" 
+                                                            name="productCharacteristics" 
+                                                            value="fragile"
+                                                            checked={order.productCharacteristics?.includes('fragile')}
+                                                            onChange={handleCharacteristicsChange}
+                                                            disabled={loading}
+                                                        />
+                                                        <label htmlFor="fragile">Dễ vỡ</label>
+                                                    </div>
+                                                    <div className="checkbox-item">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            id="solid" 
+                                                            name="productCharacteristics" 
+                                                            value="solid"
+                                                            checked={order.productCharacteristics?.includes('solid')}
+                                                            onChange={handleCharacteristicsChange}
+                                                            disabled={loading}
+                                                        />
+                                                        <label htmlFor="solid">Nguyên khối</label>
+                                                    </div>
+                                                    <div className="checkbox-item">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            id="oversized" 
+                                                            name="productCharacteristics" 
+                                                            value="oversized"
+                                                            checked={order.productCharacteristics?.includes('oversized')}
+                                                            onChange={handleCharacteristicsChange}
+                                                            disabled={loading}
+                                                        />
+                                                        <label htmlFor="oversized">Quá khổ</label>
+                                                    </div>
+                                                    <div className="checkbox-item">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            id="liquid" 
+                                                            name="productCharacteristics" 
+                                                            value="liquid"
+                                                            checked={order.productCharacteristics?.includes('liquid')}
+                                                            onChange={handleCharacteristicsChange}
+                                                            disabled={loading}
+                                                        />
+                                                        <label htmlFor="liquid">Chất lỏng</label>
+                                                    </div>
+                                                    <div className="checkbox-item">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            id="magnetic" 
+                                                            name="productCharacteristics" 
+                                                            value="magnetic"
+                                                            checked={order.productCharacteristics?.includes('magnetic')}
+                                                            onChange={handleCharacteristicsChange}
+                                                            disabled={loading}
+                                                        />
+                                                        <label htmlFor="magnetic">Từ tính, Pin</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>                                        
+                                        <div className="form-section">
+                                            <h3 className="form-section-title">Thông tin bổ sung</h3>
+                                            <div className="form-group">
+                                                <label>Ghi chú (tùy chọn)</label>
+                                                <textarea
+                                                    name="notes"
+                                                    value={order.notes}
+                                                    onChange={handleInputChange}
+                                                    className="form-textarea"
+                                                    placeholder="Nhập ghi chú cho đơn hàng nếu có"
+                                                    disabled={loading}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Tiền thu hộ COD (đồng)</label>
+                                                <input
+                                                    type="number"
+                                                    name="codAmount"
+                                                    value={order.codAmount || 0}
+                                                    onChange={handleInputChange}
+                                                    className="form-input"
+                                                    placeholder="Nhập số tiền thu hộ (nếu có)"
+                                                    min="0"
+                                                    step="1000"
+                                                    disabled={loading}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="form-group">
-                                            <label>Địa chỉ người nhận</label>
-                                            <input
-                                                type="text"
-                                                name="receiverAddress"
-                                                value={order.receiverAddress}
-                                                onChange={handleInputChange}
-                                                className="form-input"
-                                                placeholder="Nhập địa chỉ người nhận"
-                                                required
-                                                disabled={loading}
-                                            />
+
+                                        <div className="form-section form-summary">
+                                            <h3 className="form-section-title">Tóm tắt đơn hàng</h3>
+                                            <div className="summary-item">
+                                                <span>Phí vận chuyển:</span>
+                                                <span className="summary-value">{formatCurrency(calculateShippingFee())}</span>
+                                            </div>
+                                            <div className="summary-item">
+                                                <span>Thu hộ COD:</span>
+                                                <span className="summary-value">{formatCurrency(order.codAmount || 0)}</span>
+                                            </div>
+                                            <div className="summary-item total">
+                                                <span>Tổng thanh toán:</span>
+                                                <span className="summary-value">{formatCurrency(calculateShippingFee())}</span>
+                                            </div>
                                         </div>
-                                        <div className="form-group">
-                                            <label>Số điện thoại người nhận</label>
-                                            <input
-                                                type="tel"
-                                                name="receiverPhone"
-                                                value={order.receiverPhone}
-                                                onChange={handleInputChange}
-                                                className="form-input"
-                                                placeholder="Nhập số điện thoại"
-                                                required
-                                                disabled={loading}
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Hàng hóa</label>
-                                            <select
-                                                name="ID_HH"
-                                                value={order.ID_HH}
-                                                onChange={handleInputChange}
-                                                className="form-input"
-                                                required
-                                                disabled={loading}
-                                            >
-                                                <option value="">Chọn hàng hóa</option>
-                                                {products.map((prod) => (
-                                                    <option key={prod.ID_HH} value={prod.ID_HH}>
-                                                        {prod.TenHH} (Trọng lượng: {prod.TrongLuong}kg)
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Ghi chú (tùy chọn)</label>
-                                            <textarea
-                                                name="notes"
-                                                value={order.notes}
-                                                onChange={handleInputChange}
-                                                className="form-textarea"
-                                                placeholder="Nhập ghi chú nếu có"
-                                                disabled={loading}
-                                            />
-                                        </div>
-                                        <div className="flex justify-end">
+
+                                        <div className="form-actions">
                                             <button type="submit" className="submit-button" disabled={loading}>
                                                 {loading ? 'Đang tạo...' : 'Tạo đơn hàng'}
                                             </button>
                                         </div>
-                                    </form>
+                                    </form>                                    {/* Form thanh toán sau khi đơn hàng được tạo */}
+                                    {showPaymentForm && createdOrder && (
+                                        <div className="payment-modal-overlay">
+                                            <div className="payment-modal">
+                                                <div className="payment-modal-header">
+                                                    <h3>Thanh toán đơn hàng</h3>
+                                                    <button 
+                                                        className="close-button" 
+                                                        onClick={handleClosePaymentForm}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                                
+                                                <div className="payment-modal-body">
+                                                    <div className="order-summary">
+                                                        <h4>Thông tin đơn hàng</h4>
+                                                        <div className="summary-row">
+                                                            <span className="label">Mã vận đơn:</span>
+                                                            <span className="value">{createdOrder.maVanDon}</span>
+                                                        </div>
+                                                        <div className="summary-row">
+                                                            <span className="label">Phí vận chuyển:</span>
+                                                            <span className="value">{formatCurrency(calculateShippingFee())}</span>
+                                                        </div>
+                                                        {parseInt(order.codAmount) > 0 && (
+                                                            <div className="summary-row">
+                                                                <span className="label">Thu hộ (COD):</span>
+                                                                <span className="value">{formatCurrency(parseInt(order.codAmount))}</span>
+                                                            </div>
+                                                        )}
+                                                        <div className="summary-row total">
+                                                            <span className="label">Tổng thanh toán:</span>
+                                                            <span className="value">{formatCurrency(calculateShippingFee())}</span>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="payment-methods">
+                                                        <h4>Chọn phương thức thanh toán</h4>
+                                                        <div className="payment-options">
+                                                            <button 
+                                                                className="payment-option-btn" 
+                                                                onClick={() => handlePayment('Chuyển khoản ngân hàng')}
+                                                                disabled={loading}
+                                                            >
+                                                                <span className="payment-icon">🏦</span>
+                                                                Chuyển khoản ngân hàng
+                                                            </button>
+                                                            
+                                                            <button 
+                                                                className="payment-option-btn" 
+                                                                onClick={() => handlePayment('Ví điện tử MoMo')}
+                                                                disabled={loading}
+                                                            >
+                                                                <span className="payment-icon">📱</span>
+                                                                Ví điện tử MoMo
+                                                            </button>
+                                                            
+                                                            <button 
+                                                                className="payment-option-btn" 
+                                                                onClick={() => handlePayment('VNPay QR')}
+                                                                disabled={loading}
+                                                            >
+                                                                <span className="payment-icon">🔄</span>
+                                                                VNPay QR
+                                                            </button>
+                                                            
+                                                            <button 
+                                                                className="payment-option-btn" 
+                                                                onClick={() => handlePayment('Tiền mặt khi nhận hàng')}
+                                                                disabled={loading}
+                                                            >
+                                                                <span className="payment-icon">💵</span>
+                                                                Tiền mặt khi nhận hàng
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                {loading && (
+                                                    <div className="payment-loading">
+                                                        <span className="loading-spinner"></span>
+                                                        <p>Đang xử lý thanh toán...</p>
+                                                    </div>
+                                                )}
+                                                
+                                                {error && (
+                                                    <div className="payment-error">
+                                                        {error}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <h2 className="order-form-title">Lịch sử đơn hàng</h2>
                                     <table className="order-table">
                                         <thead>
@@ -437,20 +866,28 @@ const UserPage = () => {
                                                 <th>Người Nhận</th>
                                                 <th>Địa Chỉ Nhận</th>
                                                 <th>Trạng Thái</th>
+                                                <th>Phí Giao</th>
                                                 <th>Ngày Tạo</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {userOrders.map((order) => (
-                                                <tr key={order.ID_DH}>
-                                                    <td>{order.MaVanDon}</td>
-                                                    <td>{order.TenHH}</td>
-                                                    <td>{order.Ten_NN}</td>
-                                                    <td>{order.DiaChiNguoiNhan}</td>
-                                                    <td>{order.TrangThaiDonHang}</td>
-                                                    <td>{new Date(order.NgayTaoDon).toLocaleDateString()}</td>
+                                            {userOrders.length > 0 ? (
+                                                userOrders.map((order) => (
+                                                    <tr key={order.ID_DH}>
+                                                        <td>{order.MaVanDon}</td>
+                                                        <td>{order.TenHH}</td>
+                                                        <td>{order.TenNguoiNhan || order.Ten_NN}</td>
+                                                        <td>{order.DiaChiNN}</td>
+                                                        <td>{order.TrangThaiDonHang}</td>
+                                                        <td>{formatCurrency(order.PhiGiaoHang || 0)}</td>
+                                                        <td>{new Date(order.NgayTaoDon).toLocaleDateString()}</td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="7" className="no-data">Bạn chưa có đơn hàng nào</td>
                                                 </tr>
-                                            ))}
+                                            )}
                                         </tbody>
                                     </table>
                                 </>

@@ -7,6 +7,7 @@ const routerDH = require('./src/routes/routeDH');
 const routerReport = require('./src/routes/routeReport');
 const routerPayment = require('./src/routes/routePayment');
 const routerNotification = require('./src/routes/routeNotification');
+const routeOrder = require('./src/routes/routeOrder');
 const authMiddleware = require('./src/middleware/auth');
 const errorHandler = require('./src/middleware/errorHandler');
 
@@ -27,6 +28,8 @@ app.use('/api', authMiddleware, routerDH); // /api/donhang
 app.use('/api', authMiddleware, routerReport); // /api/reports
 app.use('/api', authMiddleware, routerPayment); // /api/payments
 app.use('/api', authMiddleware, routerNotification); // /api/notifications
+app.use('/api', authMiddleware, routeOrder);
+
 
 // Error handling middleware - should be added after all routes
 app.use(errorHandler);

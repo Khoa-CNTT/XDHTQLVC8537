@@ -21,6 +21,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { UserManagement } from "./UserManagement";
+import { OrderManagement } from "./OrderManagement";
 import { useAuth } from "../../contexts/AuthContext"; // Add import for useAuth
 
 // Menu structure (có thể tách ra file riêng)
@@ -30,8 +31,8 @@ const MENU_STRUCTURE = [
     name: "Quản lý",
     icon: BuildingStorefrontIcon,
     subItems: [
-      { id: "shipping-management", name: "Quản lý vận đơn", icon: ClipboardDocumentListIcon, path: "/admin/shipping" },
-      { id: "pending-orders", name: "Đơn hàng cần xử lý", icon: ArchiveBoxIcon, path: "/admin/orders/pending" },
+      { id: "shipping-management", name: "Quản lý vận đơn", icon: ClipboardDocumentListIcon, path: "/admin/orders" },
+      { id: "pending-orders", name: "Đơn hàng cần xử lý", icon: ArchiveBoxIcon, path: "/admin/pending" },
       { id: "users", name: "Quản lý tài khoản", icon: UsersIcon, path: "/admin/users" },
     ],
   },
@@ -58,6 +59,7 @@ const MENU_STRUCTURE = [
 // Component mapping để render nội dung chính
 const CONTENT_MAP = {
   users: UserManagement,
+  "shipping-management": OrderManagement,
   // Thêm các mapping khác khi cần
 };
 
