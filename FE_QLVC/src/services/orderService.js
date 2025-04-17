@@ -89,6 +89,60 @@ export const orderService = {
       throw error;
     }
   },
+  // Get revenue statistics by period type and year
+  getRevenueStats: async (periodType = 'month', year) => {
+    try {
+      let queryParams = new URLSearchParams();
+      queryParams.append('periodType', periodType);
+      if (year) queryParams.append('year', year);
+      
+      // Build cache key based on query parameters
+      const cacheKey = `revenue-stats-${periodType}-${year || 'current'}`;
+      
+      // Only use cache for short period to ensure data freshness
+      if (responseCache.has(cacheKey)) {
+        const cachedData = responseCache.get(cacheKey);
+        const cacheTime = cachedData.timestamp || 0;
+        const now = Date.now();
+        // Use cache if it's less than 5 minutes old
+        if (now - cacheTime < 5 * 60 * 1000) {
+          console.log("Returning cached revenue stats");
+          return cachedData.data;
+        }
+      }
+      
+      console.log("Fetching revenue stats from:", `${API_BASE_URL}/reports/revenue-stats?${queryParams.toString()}`);
+      const response = await axios.get(`${API_BASE_URL}/reports/revenue-stats?${queryParams.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`
+        },
+        timeout: 10000
+      });
+      
+      if (response.data && response.data.success && response.data.data) {
+        // Store data with timestamp for cache expiration
+        responseCache.set(cacheKey, {
+          data: response.data.data,
+          timestamp: Date.now()
+        });
+        return response.data.data;
+      }
+      
+      throw new Error('Invalid response format');
+    } catch (error) {
+      console.error('Error fetching revenue stats:', error);
+      if (error.response) {
+        if (error.response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('userInfo');
+          window.dispatchEvent(new CustomEvent('auth-error', { detail: 'Token expired' }));
+          throw new Error('Phiên đăng nhập đã hết hạn, bạn sẽ được đưa về trang đăng nhập');
+        }
+        throw new Error(error.response.data?.error || 'Có lỗi xảy ra khi tải dữ liệu thống kê');
+      }
+      throw error;
+    }
+  },
 
   // Get a specific order by ID
   getOrderById: async (id) => {

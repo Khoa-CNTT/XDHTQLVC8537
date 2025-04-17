@@ -1,6 +1,133 @@
 const { connection } = require('../config/database');
 
-// Get all reports
+// Thống kê tiền hàng theo tháng hoặc năm
+const getRevenueStats = async (req, res) => {
+    const { periodType = 'month', year } = req.query;
+    const selectedYear = parseInt(year) || new Date().getFullYear();
+    
+    let conn;
+    try {
+        conn = await connection.getConnection();
+        
+        let query, params;
+          if (periodType === 'month') {
+            // Thống kê theo từng tháng trong năm được chọn
+            query = `
+                SELECT 
+                    MONTH(dh.NgayTaoDon) AS period,
+                    COUNT(dh.ID_DH) AS totalOrders,
+                    SUM(IFNULL(tt.TienThuHo, 0)) AS totalCodAmount,
+                    SUM(IFNULL(dh.PhiGiaoHang, 0)) AS totalShippingFee
+                FROM DonHang dh
+                LEFT JOIN ThanhToan tt ON dh.ID_DH = tt.ID_DH
+                WHERE YEAR(dh.NgayTaoDon) = ?
+                GROUP BY MONTH(dh.NgayTaoDon)
+                ORDER BY MONTH(dh.NgayTaoDon)
+            `;
+            params = [selectedYear];
+        } else {
+            // Thống kê theo năm (5 năm gần nhất)
+            query = `
+                SELECT 
+                    YEAR(dh.NgayTaoDon) AS period,
+                    COUNT(dh.ID_DH) AS totalOrders,
+                    SUM(IFNULL(tt.TienThuHo, 0)) AS totalCodAmount,
+                    SUM(IFNULL(dh.PhiGiaoHang, 0)) AS totalShippingFee
+                FROM DonHang dh
+                LEFT JOIN ThanhToan tt ON dh.ID_DH = tt.ID_DH
+                WHERE YEAR(dh.NgayTaoDon) >= YEAR(NOW()) - 4
+                GROUP BY YEAR(dh.NgayTaoDon)
+                ORDER BY YEAR(dh.NgayTaoDon)
+            `;
+            params = [];
+        }
+
+        const [revenueStats] = await conn.query(query, params);
+
+        // Tính tổng
+        let totalOrders = 0;
+        let totalCodAmount = 0;
+        let totalShippingFee = 0;
+        
+        // Chuẩn bị dữ liệu để trả về frontend
+        const stats = {
+            labels: [],
+            orderCounts: [],
+            codAmounts: [],
+            shippingFees: [],
+            totalOrders: 0,
+            totalCodAmount: 0,
+            totalShippingFee: 0
+        };
+        
+        // Nếu là thống kê theo tháng, đảm bảo có đủ 12 tháng
+        if (periodType === 'month') {
+            for (let i = 1; i <= 12; i++) {
+                const monthData = revenueStats.find(item => item.period === i) || {
+                    period: i,
+                    totalOrders: 0,
+                    totalCodAmount: 0,
+                    totalShippingFee: 0
+                };
+                
+                stats.labels.push(`T${i}`);
+                stats.orderCounts.push(parseInt(monthData.totalOrders) || 0);
+                stats.codAmounts.push(parseInt(monthData.totalCodAmount) || 0);
+                stats.shippingFees.push(parseInt(monthData.totalShippingFee) || 0);
+                
+                totalOrders += parseInt(monthData.totalOrders) || 0;
+                totalCodAmount += parseInt(monthData.totalCodAmount) || 0;
+                totalShippingFee += parseInt(monthData.totalShippingFee) || 0;
+            }
+        } else {
+            // Nếu là thống kê theo năm, lấy dữ liệu 5 năm gần nhất
+            const currentYear = new Date().getFullYear();
+            for (let i = 0; i < 5; i++) {
+                const year = currentYear - i;
+                const yearData = revenueStats.find(item => item.period === year) || {
+                    period: year,
+                    totalOrders: 0,
+                    totalCodAmount: 0,
+                    totalShippingFee: 0
+                };
+                
+                stats.labels.push(year.toString());
+                stats.orderCounts.push(parseInt(yearData.totalOrders) || 0);
+                stats.codAmounts.push(parseInt(yearData.totalCodAmount) || 0);
+                stats.shippingFees.push(parseInt(yearData.totalShippingFee) || 0);
+                
+                totalOrders += parseInt(yearData.totalOrders) || 0;
+                totalCodAmount += parseInt(yearData.totalCodAmount) || 0;
+                totalShippingFee += parseInt(yearData.totalShippingFee) || 0;
+            }
+            
+            // Đảo ngược mảng để hiển thị từ năm cũ đến năm mới
+            stats.labels.reverse();
+            stats.orderCounts.reverse();
+            stats.codAmounts.reverse();
+            stats.shippingFees.reverse();
+        }
+        
+        stats.totalOrders = totalOrders;
+        stats.totalCodAmount = totalCodAmount;
+        stats.totalShippingFee = totalShippingFee;
+        
+        res.status(200).json({
+            success: true,
+            data: stats
+        });
+        
+    } catch (err) {
+        console.error('Error fetching revenue stats:', err);
+        res.status(500).json({
+            success: false,
+            error: 'Không thể lấy thống kê doanh thu'
+        });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
 // Get revenue data by period (6 or 12 months)
 const getRevenueByPeriod = async (req, res) => {
     const { period = 6 } = req.query;
@@ -243,5 +370,6 @@ module.exports = {
     createStaffReport,
     getFinancialReportById,
     getStaffReportById,
-    getRevenueByPeriod
+    getRevenueByPeriod,
+    getRevenueStats
 };

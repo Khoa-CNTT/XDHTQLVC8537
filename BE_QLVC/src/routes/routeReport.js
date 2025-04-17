@@ -6,7 +6,8 @@ const {
     createStaffReport,
     getFinancialReportById,
     getStaffReportById,
-    getRevenueByPeriod
+    getRevenueByPeriod,
+    getRevenueStats
 } = require('../controllers/controllerReport');
 
 // Get all reports
@@ -14,6 +15,9 @@ router.get('/reports', getAllReports);
 
 // Get revenue data by period (for dashboard)
 router.get('/reports/revenue', getRevenueByPeriod);
+
+// Get detailed revenue statistics by month/year
+router.get('/reports/revenue-stats', getRevenueStats);
 
 // Create financial report
 router.post('/reports/financial', createFinancialReport);

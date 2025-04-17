@@ -23,6 +23,7 @@ import {
 import { UserManagement } from "./UserManagement";
 import { OrderManagement } from "./OrderManagement";
 import { useAuth } from "../../contexts/AuthContext"; // Add import for useAuth
+import RevenueReport from "./reports/RevenueReport";
 
 // Menu structure (có thể tách ra file riêng)
 const MENU_STRUCTURE = [
@@ -56,10 +57,14 @@ const MENU_STRUCTURE = [
     ],  },
 ];
 
+// Import component thống kê tiền hàng
+
+
 // Component mapping để render nội dung chính
 const CONTENT_MAP = {
   users: UserManagement,
   "shipping-management": OrderManagement,
+  "revenue-report": RevenueReport,
   // Thêm các mapping khác khi cần
 };
 
