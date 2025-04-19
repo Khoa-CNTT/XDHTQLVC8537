@@ -108,7 +108,7 @@ const years = useMemo(() => {
       totalCodAmount,
       totalShippingFee
     };
-  }, [periodType, selectedYear, years]);
+  }, [periodType, years]);
 
   const prepareChartData = useCallback((data) => {
     setChartData({

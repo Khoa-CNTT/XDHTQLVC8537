@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect,useCallback } from 'react';
 import './UserManagement.css';
 import { authService } from '../../services/authService';
 import UserEditModal from '../../components/modals/UserEditModal';
@@ -18,45 +18,42 @@ export const UserManagement = () => {
   const [currentUser, setCurrentUser] = useState(null);
 
   // Fetch users function (reusable)
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      // Use the getUsers method from authService
-      const userData = await authService.getUsers();
-      console.log('API response:', userData);
-      
-      // Filter users based on name if nameFilter is provided
-      const filteredData = nameFilter 
-        ? userData.filter(user => 
-            (user.HoTen || user.name || '').toLowerCase().includes(nameFilter.toLowerCase())
-          )
-        : userData;
-      
-      // Apply pagination to the filtered data
-      const paginatedData = filteredData.slice(
-        (currentPage - 1) * rowsPerPage,
-        currentPage * rowsPerPage
-      );
-      
-      setUsers(paginatedData);
-      
-      // Calculate total pages based on filtered data length
-      const total = Math.ceil(filteredData.length / rowsPerPage) || 1;
-      setTotalPages(total);
-      
-      setError(null);
-    } catch (err) {
-      console.error('Failed to fetch users:', err);
-      setError('Không thể tải dữ liệu người dùng. Vui lòng thử lại sau.');
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-  // Call fetchUsers when component mounts or dependencies change
-  useEffect(() => {
-    fetchUsers();
-  }, [currentPage, rowsPerPage, nameFilter]);
+  const fetchUsers = useCallback(async () => {
+  try {
+    setLoading(true);
+    const userData = await authService.getUsers();
+    console.log('API response:', userData);
+
+    const filteredData = nameFilter 
+      ? userData.filter(user =>
+          (user.HoTen || user.name || '').toLowerCase().includes(nameFilter.toLowerCase())
+        )
+      : userData;
+
+    const paginatedData = filteredData.slice(
+      (currentPage - 1) * rowsPerPage,
+      currentPage * rowsPerPage
+    );
+
+    setUsers(paginatedData);
+
+    const total = Math.ceil(filteredData.length / rowsPerPage) || 1;
+    setTotalPages(total);
+
+    setError(null);
+  } catch (err) {
+    console.error('Failed to fetch users:', err);
+    setError('Không thể tải dữ liệu người dùng. Vui lòng thử lại sau.');
+    setUsers([]);
+  } finally {
+    setLoading(false);
+  }
+}, [currentPage, rowsPerPage, nameFilter]); // 👈 thêm dependencies
+
+useEffect(() => {
+  fetchUsers();
+}, [fetchUsers]); // 👈 không còn cảnh báo nữa
+
 
   // Handle delete confirmation
   const handleDelete = async (userId) => {

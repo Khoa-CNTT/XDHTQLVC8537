@@ -581,7 +581,106 @@ export const orderService = {
       throw error;
     }
   },
-  
+
+  // Get all pending orders waiting for staff acceptance
+  getPendingOrders: async () => {
+    try {
+      // Build cache key
+      const cacheKey = 'pending-orders';
+      
+      // Use cache if available but not for too long (30 seconds)
+      if (responseCache.has(cacheKey)) {
+        const cachedData = responseCache.get(cacheKey);
+        const now = Date.now();
+        if (now - cachedData.timestamp < 30 * 1000) { // 30 seconds
+          console.log("Returning cached pending orders data");
+          return cachedData.data;
+        }
+        // Otherwise fetch fresh data
+      }
+      
+      console.log("Fetching pending orders");
+      const response = await axios.get(`${API_BASE_URL}/pending-orders`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`
+        },
+        timeout: 10000,
+      });
+      
+      if (response.data && response.data.data) {
+        responseCache.set(cacheKey, {
+          data: response.data.data,
+          timestamp: Date.now()
+        });
+        return response.data.data;
+      } else if (response.data) {
+        responseCache.set(cacheKey, {
+          data: response.data,
+          timestamp: Date.now()
+        });
+        return response.data;
+      }
+      
+      throw new Error('Invalid response format');
+    } catch (error) {
+      console.error('Error fetching pending orders:', error);
+      
+      if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+        throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng hoặc máy chủ đã khởi động chưa.');
+      }
+
+      if (error.response) {
+        if (error.response.status === 401) {
+          throw new Error('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
+        }
+        throw new Error(error.response.data?.message || 'Có lỗi xảy ra khi tải đơn hàng đang chờ');
+      }
+
+      throw error;
+    }
+  },
+
+  // Accept a pending order as staff
+  acceptPendingOrder: async (pendingOrderId, staffId) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/pending-orders/${pendingOrderId}/accept`, 
+        { staffId },
+        {
+          headers: {
+            Authorization: `Bearer ${getToken()}`
+          },
+          timeout: 10000,
+        }
+      );
+
+      // Clear cache for both pending orders and staff orders since there are changes
+      Array.from(responseCache.keys())
+        .filter(key => key.startsWith('pending-orders') || key.startsWith('orders-'))
+        .forEach(key => responseCache.delete(key));
+
+      if (response.data && response.data.success) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data?.error || 'Failed to accept order');
+    } catch (error) {
+      console.error('Error accepting pending order:', error);
+      
+      if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+        throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng hoặc máy chủ đã khởi động chưa.');
+      }
+
+      if (error.response) {
+        if (error.response.status === 401) {
+          throw new Error('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
+        }
+        throw new Error(error.response.data?.message || 'Có lỗi xảy ra khi nhận đơn hàng');
+      }
+
+      throw error;
+    }
+  },
+
   // Clear cache when needed (e.g., after logout)
   clearCache: () => {
     responseCache.clear();
