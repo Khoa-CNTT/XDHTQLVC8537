@@ -1,0 +1,217 @@
+.revenue-report-container {
+  padding: 1.5rem;
+  background-color: #f8fafc;
+  border-radius: 0.5rem;
+}
+
+.revenue-report-title {
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Phần bộ lọc */
+.filter-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #fff;
+  border-radius: 0.375rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-select {
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  background-color: #fff;
+  font-size: 0.875rem;
+}
+
+.refresh-button {
+  margin-left: auto;
+  padding: 0.5rem 1rem;
+  background-color: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.refresh-button:hover {
+  background-color: #2563eb;
+}
+
+/* Các thẻ thống kê */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  padding: 1.5rem;
+  background-color: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.stat-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-right: 1rem;
+  border-radius: 50%;
+  color: white;
+  font-size: 1.25rem;
+}
+
+.order-icon {
+  background-color: #3b82f6; /* blue */
+}
+
+.cod-icon {
+  background-color: #10b981; /* green */
+}
+
+.fee-icon {
+  background-color: #f59e0b; /* amber */
+}
+
+.stat-card-content {
+  flex: 1;
+}
+
+.stat-card-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.stat-card-value {
+  margin: 0.25rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* Biểu đồ */
+.chart-container {
+  padding: 1.5rem;
+  background-color: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+/* Bảng dữ liệu */
+.data-table-section {
+  background-color: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+}
+
+.section-title {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.data-table th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+  background-color: #f1f5f9;
+}
+
+.total-row {
+  background-color: #f8fafc;
+  font-weight: 500;
+}
+
+.total-row td {
+  border-top: 2px solid #e2e8f0;
+}
+
+/* Loading và Error containers */
+.loading-container,
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  font-size: 1rem;
+}
+
+.error-container {
+  color: #ef4444;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .filter-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .refresh-button {
+    margin-left: 0;
+    width: 100%;
+    margin-top: 1rem;
+  }
+  
+  .stat-cards {
+    grid-template-columns: 1fr;
+  }
+}

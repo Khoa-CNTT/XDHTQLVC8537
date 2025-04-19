@@ -1,0 +1,329 @@
+.order-management-container {
+  padding: 20px;
+  background-color: #EEEEEE;
+}
+
+.order-management-title {
+  font-family: 'Roboto', sans-serif;
+  font-size: 34px;
+  font-weight: 400;
+  color: #000000;
+  margin-bottom: 20px;
+}
+
+.order-management-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.order-management-container .search-container {
+  width: 100%;
+}
+
+.order-management-container .search-wrapper {
+  position: relative;
+  width: 260px;
+}
+
+.order-management-container .search-input {
+  padding: 8px 10px 8px 40px;
+  border: 1px solid rgba(0, 0, 0, 0.23);
+  border-radius: 4px;
+  font-size: 16px;
+  width: 100%;
+  font-family: 'Roboto', sans-serif;
+}
+
+.order-management-container .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.filter-selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+}
+
+.select-wrapper {
+  position: relative;
+}
+
+.filter-select {
+  padding: 8px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.23);
+  border-radius: 4px;
+  font-size: 16px;
+  min-width: 200px;
+  font-family: 'Roboto', sans-serif;
+  background-color: white;
+  appearance: none;
+  padding-right: 30px;
+}
+
+.select-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid rgba(0, 0, 0, 0.56);
+  pointer-events: none;
+}
+
+.date-picker {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  gap: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.23);
+  border-radius: 4px;
+  width: 380px;
+  background-color: white;
+  font-family: 'Roboto', sans-serif;
+  color: rgba(0, 0, 0, 0.6);
+  position: relative;
+}
+
+.date-picker span {
+  font-size: 16px;
+}
+
+.status-tabs {
+  display: flex;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.status-tab {
+  padding: 9px 16px;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2.8%;
+  border: none;
+  background: none;
+  color: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+}
+
+.status-tab.active {
+  color: #1976D2;
+}
+
+.status-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #1976D2;
+}
+
+.order-actions {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.print-button,
+.export-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2.8%;
+  color: white;
+  box-shadow: 0px 3px 1px -2px rgba(0, 0, 0, 0.2), 0px 2px 2px 0px rgba(0, 0, 0, 0.14), 0px 1px 5px 0px rgba(0, 0, 0, 0.12);
+}
+
+.print-button {
+  background-color: #0288D1;
+}
+
+.export-button {
+  background-color: #38A169;
+}
+
+.orders-table-container {
+  background-color: #FFFFFF;
+  border-radius: 4px;
+  overflow-x: auto;
+  box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12);
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.orders-table th,
+.orders-table td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.orders-table th {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  background-color: transparent;
+}
+
+.orders-table td {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #2D3748;
+}
+
+.orders-table .row-highlighted {
+  background-color: #EBF8FF;
+}
+
+.order-code {
+  font-weight: 500;
+  color: #4299E1 !important;
+}
+
+.action-cell {
+  display: flex;
+  gap: 5px;
+}
+
+.approve-button,
+.cancel-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2.8%;
+  color: white;
+  box-shadow: 0px 3px 1px -2px rgba(0, 0, 0, 0.2), 0px 2px 2px 0px rgba(0, 0, 0, 0.14), 0px 1px 5px 0px rgba(0, 0, 0, 0.12);
+}
+
+.approve-button {
+  background-color: #0288D1;
+}
+
+.cancel-button {
+  background-color: #E53E3E;
+}
+
+.totals-row td {
+  padding: 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #2D3748;
+  font-weight: 400;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 2px 0;
+  gap: 26px;
+}
+
+.rows-per-page {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rows-per-page span {
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.pagination-buttons {
+  display: flex;
+}
+
+.pagination-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.56);
+}
+
+.pagination-button:disabled {
+  color: rgba(0, 0, 0, 0.26);
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.no-data-message {
+  text-align: center;
+  padding: 20px;
+  font-family: 'Roboto', sans-serif;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.error-message {
+  background-color: #FEE2E2;
+  color: #B91C1C;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-family: 'Roboto', sans-serif;
+}
+
+.loading-spinner {
+  padding: 20px;
+  text-align: center;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .filter-selects {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .search-wrapper {
+    width: 100%;
+  }
+  
+  .date-picker {
+    width: 100%;
+  }
+}

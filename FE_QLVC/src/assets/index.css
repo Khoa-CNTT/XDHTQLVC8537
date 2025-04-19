@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -15,6 +16,39 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+=======
+:root {
+  /* Existing variables */
+  --bg-light: #f9fafb;
+  --bg-white: #ffffff;
+  --border-light: #e5e7eb;
+  --text-dark: #1f2937;
+  --text-gray: #6b7280;
+  --accent-blue: #3b82f6;
+  --accent-blue-dark: #2563eb;
+
+  /* Figma Colors */
+  --figma-appbar: #FFFFFF;
+  --figma-sidebar: #FFFFFF;
+  --figma-content-bg: #F9FAFB;
+  --figma-text-primary: #111827;
+  --figma-text-secondary: #6B7280;
+  --figma-icon: #6B7280;
+  --figma-icon-inactive: #9CA3AF;
+  --figma-active-item: #EFF6FF;
+  --figma-active-text: #2563EB;
+  --figma-logout-btn: #2563EB;
+  --figma-search-border: #E5E7EB;
+  --figma-table-header: #F9FAFB;
+  --figma-border: #E5E7EB;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--figma-content-bg); /* Use Figma background */
+  color: var(--figma-text-primary); /* Use Figma primary text */
+>>>>>>> thong
 }
 
 a {
@@ -27,6 +61,7 @@ a:hover {
   color: #535bf2;
 }
 
+<<<<<<< HEAD
 body {
   margin: 0;
   display: flex;
@@ -75,3 +110,443 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+=======
+/* Base Icon Style */
+.icon-base {
+  width: 1.5rem; /* 24px */
+  height: 1.5rem; /* 24px */
+}
+
+/* Admin Layout Container */
+.admin-layout-container {
+  min-height: 100vh;
+  background-color: var(--figma-content-bg);
+  padding-top: 4rem; /* Height of the fixed header */
+  display: flex;
+}
+
+/* Fixed Header */
+.admin-header-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4rem; /* 64px */
+  background-color: var(--figma-appbar);
+  border-bottom: 1px solid var(--figma-border);
+  z-index: 40;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.admin-header-content {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem; /* px-6 */
+}
+
+.admin-header-left {
+  display: flex;
+  align-items: center;
+}
+
+.admin-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* gap-4 */
+}
+
+.mobile-menu-button {
+  padding: 0.5rem; /* p-2 */
+  color: var(--figma-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 0.375rem; /* rounded-md */
+}
+.mobile-menu-button:hover {
+  background-color: var(--figma-content-bg); /* hover:bg-gray-100 */
+}
+
+.search-container {
+  position: relative;
+  display: none; /* hidden */
+}
+@media (min-width: 768px) { /* md:block */
+  .search-container {
+    display: block;
+  }
+}
+
+.search-input {
+  width: 16rem; /* w-64 */
+  height: 2.5rem; /* h-10 */
+  padding-left: 2.5rem; /* pl-10 */
+  padding-right: 1rem; /* pr-4 */
+  border: 1px solid var(--figma-search-border);
+  border-radius: 0.375rem; /* rounded-md */
+  font-size: 0.875rem; /* text-sm */
+  background-color: var(--bg-white);
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); /* focus:ring-2 focus:ring-blue-500 */
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.75rem; /* left-3 */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.25rem; /* h-5 w-5 */
+  height: 1.25rem;
+  color: var(--figma-icon-inactive);
+}
+
+.notification-button {
+  padding: 0.5rem; /* p-2 */
+  border-radius: 9999px; /* rounded-full */
+  color: var(--figma-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.notification-button:hover {
+  background-color: var(--figma-content-bg); /* hover:bg-gray-100 */
+}
+
+.logout-button {
+  display: none; /* hidden */
+  align-items: center;
+  gap: 0.5rem; /* gap-2 */
+  background-color: var(--figma-logout-btn);
+  color: white;
+  padding: 0.5rem 1rem; /* px-4 py-2 */
+  border-radius: 0.375rem; /* rounded-md */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  border: none;
+  cursor: pointer;
+  text-transform: uppercase;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+}
+.logout-button:hover {
+  background-color: var(--accent-blue-dark); /* hover:bg-blue-700 */
+}
+@media (min-width: 768px) { /* md:flex */
+  .logout-button {
+    display: inline-flex;
+  }
+}
+.logout-button .icon-logout {
+  width: 1.25rem; /* h-5 w-5 */
+  height: 1.25rem;
+}
+
+/* Mobile Overlay */
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background-color: rgba(17, 24, 39, 0.75); /* bg-gray-800/75 */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease-in-out;
+}
+.mobile-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (min-width: 768px) { /* md:hidden */
+  .mobile-overlay {
+    display: none;
+  }
+}
+
+/* Sidebar */
+.admin-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 16rem; /* w-64 */
+  background-color: var(--figma-sidebar);
+  border-right: 1px solid var(--figma-border);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+}
+.admin-sidebar.open {
+  transform: translateX(0);
+}
+@media (min-width: 768px) { /* md:translate-x-0 */
+  .admin-sidebar {
+    transform: translateX(0);
+    position: sticky; /* Make it sticky on desktop */
+    height: calc(100vh - 4rem); /* Adjust height for fixed header */
+    top: 4rem; /* Position below header */
+  }
+}
+
+.sidebar-header {
+  height: 4rem; /* h-16 */
+  padding: 0 1.5rem; /* px-6 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--figma-border);
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  font-size: 1.25rem; /* text-xl */
+  font-weight: 700; /* font-bold */
+  color: var(--figma-text-primary);
+}
+
+.sidebar-nav {
+  flex-grow: 1;
+  padding: 1rem; /* p-4 */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-category {
+  margin-bottom: 0.5rem; /* space-y-2 equivalent */
+}
+
+.sidebar-category-toggle {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.75rem 1rem; /* px-4 py-3 */
+  border-radius: 0.375rem; /* rounded-md */
+  color: var(--figma-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 500; /* font-medium */
+}
+.sidebar-category-toggle:hover {
+  background-color: var(--figma-content-bg); /* hover:bg-gray-100 */
+  color: var(--figma-text-primary);
+}
+
+.sidebar-icon {
+  width: 1.25rem; /* h-5 w-5 */
+  height: 1.25rem;
+  margin-right: 0.75rem; /* mr-3 */
+  color: var(--figma-icon);
+  flex-shrink: 0;
+}
+.sidebar-category-toggle:hover .sidebar-icon {
+  color: var(--figma-text-primary);
+}
+
+.sidebar-category-name {
+  flex-grow: 1;
+}
+
+.sidebar-chevron-icon {
+  width: 1rem; /* h-4 w-4 */
+  height: 1rem;
+  color: var(--figma-icon-inactive);
+}
+
+.sidebar-submenu {
+  margin-top: 0.25rem; /* mt-1 */
+  padding-left: 1rem; /* pl-4, adjust as needed */
+}
+
+.sidebar-sub-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.625rem 1rem; /* px-4 py-2.5 */
+  border-radius: 0.375rem; /* rounded-md */
+  color: var(--figma-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.875rem; /* text-sm */
+  margin-bottom: 0.25rem; /* space-y-1 */
+}
+.sidebar-sub-item:hover {
+  background-color: var(--figma-content-bg);
+  color: var(--figma-text-primary);
+}
+.sidebar-sub-item.active {
+  background-color: var(--figma-active-item);
+  color: var(--figma-active-text);
+  font-weight: 500;
+}
+.sidebar-sub-item.active .sidebar-icon {
+  color: var(--figma-active-text);
+}
+
+.mobile-logout-button {
+  margin-top: auto; /* Push to bottom */
+  margin-bottom: 0.5rem; /* mb-2 */
+}
+@media (min-width: 768px) { /* md:hidden */
+  .mobile-logout-button {
+    display: none;
+  }
+}
+
+/* Main Content */
+.admin-main-content {
+  flex-grow: 1;
+  padding: 1.5rem; /* p-6 */
+  margin-left: 0; /* Default for mobile */
+}
+@media (min-width: 768px) { /* md:ml-64 */
+  .admin-main-content {
+    /* No margin needed as sidebar is sticky */
+  }
+}
+
+.main-content-inner {
+  max-width: 1280px; /* Example max-width, adjust as needed */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* UserForm Styles (Keep as they are, using CSS variables) */
+.user-form-dialog {
+  position: relative;
+  z-index: 50;
+}
+.user-form-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+.user-form-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.user-form-panel {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 28rem; /* max-w-md */
+  border-radius: 0.5rem; /* rounded-lg */
+  background-color: var(--bg-white);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+}
+.user-form-header {
+  border-bottom: 1px solid var(--figma-border);
+  padding: 1rem 1.5rem; /* px-6 py-4 */
+}
+.user-form-title {
+  font-size: 1.125rem; /* text-lg */
+  font-weight: 500; /* font-medium */
+  color: var(--figma-text-primary);
+}
+.user-form-body {
+  padding: 1.5rem; /* p-6 */
+}
+.user-form-space > * + * {
+  margin-top: 1rem; /* space-y-4 */
+}
+.user-form-label {
+  display: block;
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  color: var(--figma-text-secondary);
+  margin-bottom: 0.25rem; /* mb-1 */
+}
+.user-form-input,
+.user-form-select {
+  display: block;
+  width: 100%;
+  border-radius: 0.375rem; /* rounded-md */
+  border: 1px solid var(--figma-border);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+  padding: 0.5rem 0.75rem; /* Default padding */
+  font-size: 0.875rem; /* sm:text-sm */
+}
+.user-form-input:focus,
+.user-form-select:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); /* focus:border-blue-500 focus:ring-blue-500 */
+}
+.user-form-error {
+  margin-top: 0.25rem; /* mt-1 */
+  font-size: 0.875rem; /* text-sm */
+  color: #dc2626; /* text-red-600 */
+}
+.user-form-actions {
+  margin-top: 1.5rem; /* mt-6 */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.user-form-actions > * + * {
+  margin-left: 0.75rem; /* space-x-3 */
+}
+
+/* Button styles using CSS variables */
+.btn-primary-figma {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.375rem; /* rounded-md */
+  background-color: var(--figma-logout-btn);
+  padding: 0.5rem 1rem; /* px-4 py-2 */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  color: white;
+  border: none;
+  cursor: pointer;
+  text-transform: uppercase;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+}
+.btn-primary-figma:hover {
+  background-color: var(--accent-blue-dark); /* hover:bg-blue-700 */
+}
+.btn-primary-figma:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--figma-content-bg), 0 0 0 4px var(--accent-blue); /* focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 */
+}
+
+.btn-secondary-figma {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.375rem; /* rounded-md */
+  border: 1px solid var(--figma-border);
+  background-color: var(--bg-white);
+  padding: 0.5rem 1rem; /* px-4 py-2 */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  color: var(--figma-text-secondary);
+  cursor: pointer;
+}
+.btn-secondary-figma:hover {
+  background-color: var(--figma-content-bg); /* hover:bg-gray-50 */
+}
+.btn-secondary-figma:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--figma-content-bg), 0 0 0 4px var(--accent-blue); /* focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 */
+}
+
+.user-form-button-secondary {
+  /* Inherit from .btn-secondary-figma */
+}
+.user-form-button-primary {
+  /* Inherit from .btn-primary-figma */
+}
+
+/* ... other potential base styles ... */
+>>>>>>> thong
