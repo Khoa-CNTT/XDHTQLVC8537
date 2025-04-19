@@ -1,4 +1,4 @@
-const db = require('../config/database');
+const { connection } = require('../config/database');
 const { executeQuery } = require('../utils/dbUtils');
 
 /**
@@ -40,8 +40,7 @@ exports.getOrders = async (req, res, next) => {
         hh.TenHH,
         hh.SoLuong,
         hh.TrongLuong,
-        hh.DonGia,
-        tt.TienHang,
+        tt.Tienship,
         tt.TienThuHo
       FROM DonHang dh
       JOIN KhachHang kh ON dh.ID_KH = kh.ID_KH
@@ -124,15 +123,14 @@ exports.getOrderById = async (req, res, next) => {
         nn.ID_NN,
         nn.Ten_NN AS TenNguoiNhan,
         nn.DiaChi AS DiaChiNN,
-        nn.SDT AS SdtNguoiNhan,
+        nn.SDT AS SdtNguoiNhan,        
         hh.ID_HH,
         hh.TenHH,
         hh.SoLuong,
         hh.TrongLuong,
-        hh.DonGia,
         lhh.TenLoaiHH,
         tchh.TenTCHH,
-        tt.TienHang,
+        tt.Tienship,
         tt.TienThuHo
       FROM DonHang dh
       JOIN KhachHang kh ON dh.ID_KH = kh.ID_KH
@@ -169,21 +167,63 @@ exports.getOrderById = async (req, res, next) => {
  */
 exports.createOrder = async (req, res, next) => {
   try {
-    const connection = await db.getConnection();
+    const conn = await connection.getConnection();
     try {
-      await connection.beginTransaction();
+      await conn.beginTransaction();
 
       const {
-        khachHangId,
-        nhanVienId,
+        khachHangId,        nhanVienId,
+        hangHoa,
         hangHoaId,
         nguoiNhan,
         phiGiaoHang,
-        tienHang,
+        tienShip,
         tienThuHo,
         ghiChu
       } = req.body;
-
+      
+      // Xử lý trường hợp gửi hangHoa thay vì hangHoaId
+      let finalHangHoaId = hangHoaId;
+      
+      // Nếu không có hangHoaId nhưng có hangHoa, tạo mới hàng hóa
+      if (!finalHangHoaId && hangHoa) {
+        try {
+          // Lấy ID_LHH từ request. Nếu có thuộc tính ID_LHH, sử dụng nó
+          let loaiHHId = hangHoa.ID_LHH || hangHoa.loaiHH || 1;
+          
+          // Lấy ID_TCHH từ request. Nếu có thuộc tính ID_TCHH, sử dụng nó
+          let tinhChatHHId = hangHoa.ID_TCHH || 1; // Sử dụng ID_TCHH từ request nếu có
+              // Tạo mới hàng hóa - đảm bảo lưu đầy đủ tính chất hàng hóa, hình ảnh và loại hàng hóa
+          const insertHHQuery = `
+            INSERT INTO HangHoa (TenHH, SoLuong, TrongLuong, ID_LHH, ID_TCHH, image)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `;
+          
+          // Kiểm tra ảnh sản phẩm
+          let productImage = 'default.jpg';
+          if (hangHoa.image && typeof hangHoa.image === 'string' && hangHoa.image.trim() !== '') {
+            productImage = hangHoa.image;
+          }      const [hhResult] = await conn.execute(
+            insertHHQuery,
+            [
+              hangHoa.tenHH,
+              parseInt(hangHoa.soLuong) || 1, // Đảm bảo số lượng luôn là số nguyên
+              hangHoa.trongLuong || 0.1,
+              loaiHHId, // Loại hàng hóa
+              tinhChatHHId, // Tính chất hàng hóa
+              productImage // Ảnh sản phẩm
+            ]
+          );
+          
+          finalHangHoaId = hhResult.insertId;
+        } catch (error) {
+          console.error('Error creating product:', error);
+          throw new Error('Không thể tạo mới hàng hóa');
+        }
+      }
+      
+      // Xử lý nhanVienId - nếu không có, gán mặc định là 1 (có thể thay đổi sau)
+      const finalNhanVienId = nhanVienId || 1; // ID của nhân viên mặc định
       // Generate unique shipping code (MaVanDon)
       const maVanDon = generateShippingCode();
 
@@ -198,85 +238,75 @@ exports.createOrder = async (req, res, next) => {
           INSERT INTO NguoiNhan (Ten_NN, DiaChi, SDT)
           VALUES (?, ?, ?)
         `;
-        
-        const [nnResult] = await connection.execute(
+          const [nnResult] = await conn.execute(
           insertNNQuery, 
           [nguoiNhan.ten, nguoiNhan.diaChi, nguoiNhan.sdt]
         );
         
         nguoiNhanId = nnResult.insertId;
-      }
-
-      // Create the order
+      }      // Create the order in temporary table
       const ngayTaoDon = new Date();
       // Calculate expected delivery date (e.g., 3 days from now)
       const ngayGiaoDuKien = new Date(ngayTaoDon);
-      ngayGiaoDuKien.setDate(ngayGiaoDuKien.getDate() + 3);      const insertOrderQuery = `
-        INSERT INTO DonHang (
-          ID_NV, ID_KH, ID_HH, ID_NN, MaVanDon, 
+      ngayGiaoDuKien.setDate(ngayGiaoDuKien.getDate() + 3);
+      
+      // Insert into DonHangTam instead of DonHang
+      const insertOrderQuery = `
+        INSERT INTO DonHangTam (
+          ID_KH, ID_HH, ID_NN, MaVanDon, 
           NgayTaoDon, NgayGiaoDuKien, TrangThaiDonHang, PhiGiaoHang, GhiChu
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-
-      const [orderResult] = await connection.execute(
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;      const [orderResult] = await conn.execute(
         insertOrderQuery,
         [
-          nhanVienId, 
           khachHangId, 
-          hangHoaId, 
+          finalHangHoaId, 
           nguoiNhanId, 
           maVanDon,
           ngayTaoDon,
           ngayGiaoDuKien,
-          'Đang chờ xử lý', // Changed initial status
+          'Đang chờ xử lý', // Luôn sử dụng trạng thái "Đang chờ xử lý" cho đơn hàng tạm
           phiGiaoHang,
           ghiChu || null
         ]
       );
 
-      const orderId = orderResult.insertId;
-
-      // Create payment record
+      const orderId = orderResult.insertId;      // Create temporary payment record
       const insertPaymentQuery = `
-        INSERT INTO ThanhToan (ID_DH, TienHang, TienThuHo)
+        INSERT INTO ThanhToanTam (ID_DHT, TienShip, TienThuHo)
         VALUES (?, ?, ?)
-      `;
-
-      await connection.execute(
+      `;      await conn.execute(
         insertPaymentQuery,
-        [orderId, tienHang, tienThuHo || 0]
+        [orderId, tienShip, tienThuHo || 0]
       );
 
-      // Create notification
+      // Create notification for temporary order
       const insertNotificationQuery = `
-        INSERT INTO ThongBao (ID_DH, NoiDung, NgayTB)
+        INSERT INTO ThongBaoTam (ID_DHT, NoiDung, NgayTB)
         VALUES (?, ?, ?)
-      `;
-
-      await connection.execute(
+      `;      await conn.execute(
         insertNotificationQuery,
         [
           orderId,
-          'Đơn hàng mới đã được tạo',
+          'Đơn hàng mới đã được tạo và đang chờ nhân viên xác nhận',
           new Date()
         ]
-      );
-
-      await connection.commit();
+      );      await conn.commit();
 
       res.status(201).json({
         success: true,
-        message: 'Đơn hàng đã được tạo thành công',
+        message: 'Đơn hàng đã được tạo thành công và đang chờ nhân viên xác nhận',
         data: {
           id: orderId,
-          maVanDon
+          maVanDon,
+          status: 'pending' // Trạng thái chờ nhân viên xác nhận
         }
       });
     } catch (error) {
-      await connection.rollback();
+      await conn.rollback();
       throw error;
     } finally {
-      connection.release();
+      conn.release();
     }
   } catch (error) {
     next(error);
@@ -533,7 +563,7 @@ exports.updateCODStatus = async (req, res, next) => {
       if (result.affectedRows === 0) {
         // If no record was updated, it might not exist yet
         const insertQuery = `
-          INSERT INTO ThanhToan (ID_DH, TienHang, TienThuHo)
+          INSERT INTO ThanhToan (ID_DH, TienShip, TienThuHo)
           SELECT ID_DH, 0, ? FROM DonHang WHERE ID_DH = ?
         `;
         
@@ -682,6 +712,125 @@ exports.acceptOrder = async (req, res, next) => {
 };
 
 /**
+ * Accept a pending order by staff and move it to official orders table
+ */
+exports.acceptPendingOrder = async (req, res, next) => {
+  try {
+    const { id } = req.params; // ID_DHT - ID của đơn hàng tạm
+    const { staffId } = req.body;
+
+    if (!staffId) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID nhân viên là bắt buộc'
+      });
+    }
+
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // Lấy thông tin đơn hàng tạm
+      const getPendingOrderQuery = `
+        SELECT * FROM DonHangTam WHERE ID_DHT = ?
+      `;
+      const [pendingOrderResult] = await connection.execute(getPendingOrderQuery, [id]);
+      
+      if (pendingOrderResult.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy đơn hàng'
+        });
+      }
+
+      const pendingOrder = pendingOrderResult[0];
+
+      // Lấy thông tin thanh toán tạm
+      const getPaymentQuery = `
+        SELECT * FROM ThanhToanTam WHERE ID_DHT = ?
+      `;
+      const [paymentResult] = await connection.execute(getPaymentQuery, [id]);
+      const payment = paymentResult.length > 0 ? paymentResult[0] : { TienShip: 0, TienThuHo: 0 };
+
+      // Chuyển đơn hàng từ bảng tạm sang bảng chính thức
+      const insertOrderQuery = `
+        INSERT INTO DonHang (
+          ID_NV, ID_KH, ID_HH, ID_NN, MaVanDon, 
+          NgayTaoDon, NgayGiaoDuKien, TrangThaiDonHang, PhiGiaoHang, GhiChu
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      const [orderResult] = await connection.execute(
+        insertOrderQuery,
+        [
+          staffId, 
+          pendingOrder.ID_KH, 
+          pendingOrder.ID_HH, 
+          pendingOrder.ID_NN, 
+          pendingOrder.MaVanDon,
+          pendingOrder.NgayTaoDon,
+          pendingOrder.NgayGiaoDuKien,
+          'Đã tiếp nhận', // Cập nhật trạng thái đơn hàng khi nhân viên nhận
+          pendingOrder.PhiGiaoHang,
+          pendingOrder.GhiChu
+        ]
+      );
+
+      const orderId = orderResult.insertId;
+
+      // Chuyển thông tin thanh toán từ bảng tạm sang bảng chính thức
+      const insertPaymentQuery = `
+        INSERT INTO ThanhToan (ID_DH, TienShip, TienThuHo)
+        VALUES (?, ?, ?)
+      `;
+
+      await connection.execute(
+        insertPaymentQuery,
+        [orderId, payment.TienShip, payment.TienThuHo]
+      );
+
+      // Tạo thông báo cho đơn hàng chính thức
+      const insertNotificationQuery = `
+        INSERT INTO ThongBao (ID_DH, NoiDung, NgayTB)
+        VALUES (?, ?, ?)
+      `;
+
+      await connection.execute(
+        insertNotificationQuery,
+        [
+          orderId,
+          `Đơn hàng đã được nhân viên ${staffId} tiếp nhận`,
+          new Date()
+        ]
+      );
+
+      // Xóa đơn hàng tạm và thông tin liên quan
+      await connection.execute(`DELETE FROM ThongBaoTam WHERE ID_DHT = ?`, [id]);
+      await connection.execute(`DELETE FROM ThanhToanTam WHERE ID_DHT = ?`, [id]);
+      await connection.execute(`DELETE FROM DonHangTam WHERE ID_DHT = ?`, [id]);
+
+      await connection.commit();
+
+      res.status(200).json({
+        success: true,
+        message: 'Đã tiếp nhận đơn hàng thành công',
+        data: {
+          id: orderId,
+          maVanDon: pendingOrder.MaVanDon
+        }
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get order statistics
  */
 exports.getOrderStatistics = async (req, res, next) => {
@@ -740,6 +889,65 @@ exports.getOrderStatistics = async (req, res, next) => {
         statusCounts,
         totals
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get all pending orders waiting for staff acceptance
+ */
+exports.getPendingOrders = async (req, res, next) => {
+  try {
+    // Base query with joins to get all necessary information
+    const query = `
+      SELECT 
+        dht.ID_DHT,
+        dht.MaVanDon,
+        dht.NgayTaoDon,
+        dht.NgayGiaoDuKien,
+        dht.TrangThaiDonHang,
+        dht.PhiGiaoHang,
+        dht.GhiChu,
+        kh.ID_KH,
+        kh.Ten_KH AS TenKhachHang,
+        kh.DiaChi AS DiaChiKH,
+        tk_kh.Email AS EmailKH,
+        tk_kh.SDT AS SdtKhachHang,
+        nn.ID_NN,
+        nn.Ten_NN AS TenNguoiNhan,
+        nn.DiaChi AS DiaChiNN,
+        nn.SDT AS SdtNguoiNhan,        
+        hh.ID_HH,
+        hh.TenHH,
+        hh.SoLuong,
+        hh.TrongLuong,
+        hh.image,
+        lhh.ID_LHH,
+        lhh.TenLoaiHH,
+        tchh.ID_TCHH,
+        tchh.TenTCHH,
+        tt.Tienship,
+        tt.TienThuHo
+      FROM DonHangTam dht
+      JOIN KhachHang kh ON dht.ID_KH = kh.ID_KH
+      JOIN TaiKhoan tk_kh ON kh.ID_TK = tk_kh.ID_TK
+      JOIN NguoiNhan nn ON dht.ID_NN = nn.ID_NN
+      JOIN HangHoa hh ON dht.ID_HH = hh.ID_HH
+      JOIN LoaiHH lhh ON hh.ID_LHH = lhh.ID_LHH
+      JOIN TinhChatHH tchh ON hh.ID_TCHH = tchh.ID_TCHH
+      LEFT JOIN ThanhToanTam tt ON dht.ID_DHT = tt.ID_DHT
+      WHERE dht.TrangThaiDonHang = 'Đang chờ xử lý'
+      ORDER BY dht.NgayTaoDon DESC
+    `;
+
+    const pendingOrders = await executeQuery(query);
+
+    res.status(200).json({
+      success: true,
+      count: pendingOrders.length,
+      data: pendingOrders
     });
   } catch (error) {
     next(error);

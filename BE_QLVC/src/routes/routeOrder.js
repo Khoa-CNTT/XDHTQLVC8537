@@ -10,7 +10,9 @@ const {
   cancelOrder,
   updateCODStatus,
   getOrderStatistics,
-  acceptOrder
+  acceptOrder,
+  getPendingOrders,
+  acceptPendingOrder
 } = require('../controllers/controllerOrder');
 
 // Public routes (if any)
@@ -25,5 +27,9 @@ router.put('/orders/:id/approve', authMiddleware, approveOrder);
 router.put('/orders/:id/cancel', authMiddleware, cancelOrder);
 router.put('/orders/:id/cod', authMiddleware, updateCODStatus);
 router.put('/orders/:id/accept', authMiddleware, acceptOrder);
+
+// Các routes cho đơn hàng tạm thời
+router.get('/pending-orders', authMiddleware, getPendingOrders);
+router.put('/pending-orders/:id/accept', authMiddleware, acceptPendingOrder);
 
 module.exports = router;

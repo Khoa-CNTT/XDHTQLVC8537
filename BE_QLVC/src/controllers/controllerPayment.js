@@ -5,9 +5,8 @@ const getAllPayments = async (req, res) => {
     let conn;
     try {
         conn = await connection.getConnection();
-        const [payments] = await conn.query(`
-            SELECT 
-                tt.ID_TT, tt.ID_DH, tt.TienHang, tt.TienThuHo,
+        const [payments] = await conn.query(`        SELECT 
+                tt.ID_TT, tt.ID_DH, tt.TienShip, tt.TienThuHo,
                 dh.MaVanDon, dh.NgayTaoDon, dh.TrangThaiDonHang,
                 kh.Ten_KH, nv.Ten_NV
             FROM ThanhToan tt
@@ -34,9 +33,9 @@ const getAllPayments = async (req, res) => {
 
 // Implementations for other methods...
 const createPayment = async (req, res) => {
-    const { ID_DH, TienHang, TienThuHo } = req.body;
+    const { ID_DH, TienShip, TienThuHo } = req.body;
 
-    if (!ID_DH || TienHang === undefined || TienThuHo === undefined) {
+    if (!ID_DH || TienShip === undefined || TienThuHo === undefined) {
         return res.status(400).json({
             success: false,
             error: 'Missing required fields'
@@ -79,23 +78,20 @@ const createPayment = async (req, res) => {
                 success: false,
                 error: 'Payment already exists for this order'
             });
-        }
-
-        // Create payment
+        }        // Create payment
         const [result] = await conn.query(
-            'INSERT INTO ThanhToan (ID_DH, TienHang, TienThuHo) VALUES (?, ?, ?)',
-            [ID_DH, TienHang, TienThuHo]
+            'INSERT INTO ThanhToan (ID_DH, TienShip, TienThuHo) VALUES (?, ?, ?)',
+            [ID_DH, TienShip, TienThuHo]
         );
 
         await conn.commit();
 
         res.status(201).json({
             success: true,
-            message: 'Payment created successfully',
-            data: {
+            message: 'Payment created successfully',            data: {
                 ID_TT: result.insertId,
                 ID_DH,
-                TienHang,
+                TienShip,
                 TienThuHo
             }
         });
@@ -119,7 +115,7 @@ const getPaymentById = async (req, res) => {
         conn = await connection.getConnection();
         const [payments] = await conn.query(`
             SELECT 
-                tt.ID_TT, tt.ID_DH, tt.TienHang, tt.TienThuHo,
+                tt.ID_TT, tt.ID_DH, tt.TienShip, tt.TienThuHo,
                 dh.MaVanDon, dh.NgayTaoDon, dh.TrangThaiDonHang, dh.PhiGiaoHang,
                 kh.Ten_KH, kh.DiaChi as DiaChiKH,
                 nv.Ten_NV,
@@ -158,9 +154,9 @@ const getPaymentById = async (req, res) => {
 
 const updatePayment = async (req, res) => {
     const { id } = req.params;
-    const { TienHang, TienThuHo } = req.body;
+    const { TienShip, TienThuHo } = req.body;
 
-    if (TienHang === undefined && TienThuHo === undefined) {
+    if (TienShip === undefined && TienThuHo === undefined) {
         return res.status(400).json({
             success: false,
             error: 'No fields to update'
@@ -172,11 +168,9 @@ const updatePayment = async (req, res) => {
         conn = await connection.getConnection();
 
         const updateFields = [];
-        const updateValues = [];
-
-        if (TienHang !== undefined) {
-            updateFields.push('TienHang = ?');
-            updateValues.push(TienHang);
+        const updateValues = [];        if (TienShip !== undefined) {
+            updateFields.push('TienShip = ?');
+            updateValues.push(TienShip);
         }
 
         if (TienThuHo !== undefined) {

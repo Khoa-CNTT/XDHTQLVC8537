@@ -225,7 +225,7 @@ const createFinancialReport = async (req, res) => {
         // Calculate financial metrics for the period
         const [orderStats] = await conn.query(`
             SELECT 
-                SUM(hh.DonGia * hh.SoLuong) as TienHang,
+                SUM(hh.DonGia * hh.SoLuong) as TienShip,
                 SUM(dh.PhiGiaoHang) as TienThuHo,
                 COUNT(dh.ID_DH) as TongDonHang
             FROM DonHang dh
@@ -237,15 +237,14 @@ const createFinancialReport = async (req, res) => {
         // Create the financial report details
         await conn.query(`
             INSERT INTO BaoCaoTaiChinh 
-            (ID_BC, NgayBatDau, NgayKetThuc, TienHang, TienThuHo, DoanhThu)
+            (ID_BC, NgayBatDau, NgayKetThuc, TienShip, TienThuHo, DoanhThu)
             VALUES (?, ?, ?, ?, ?, ?)
-        `, [
-            reportId,
+        `, [            reportId,
             NgayBatDau,
             NgayKetThuc,
-            orderStats[0].TienHang || 0,
+            orderStats[0].TienShip || 0,
             orderStats[0].TienThuHo || 0,
-            (orderStats[0].TienHang || 0) + (orderStats[0].TienThuHo || 0)
+            (orderStats[0].TienShip || 0) + (orderStats[0].TienThuHo || 0)
         ]);
 
         await conn.commit();
@@ -256,7 +255,7 @@ const createFinancialReport = async (req, res) => {
             data: {
                 reportId,
                 totalOrders: orderStats[0].TongDonHang || 0,
-                totalRevenue: (orderStats[0].TienHang || 0) + (orderStats[0].TienThuHo || 0)
+                totalRevenue: (orderStats[0].TienShip || 0) + (orderStats[0].TienThuHo || 0)
             }
         });
     } catch (err) {
