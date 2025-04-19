@@ -135,13 +135,6 @@ const getHangHoa = async (req, res) => {
     let conn;
     try {
         conn = await connection.getConnection();
-<<<<<<< HEAD
-        const [rows] = await conn.query('SELECT * FROM HangHoa');
-        res.json(rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
-=======
         const sql = `
             SELECT hh.*, lhh.TenLoaiHH, tchh.TenTCHH
             FROM HangHoa hh
@@ -153,27 +146,12 @@ const getHangHoa = async (req, res) => {
     } catch (err) {
         console.error('Error fetching HangHoa:', err);
         res.status(500).json({ error: 'Lỗi khi lấy danh sách hàng hóa' });
->>>>>>> thong
     } finally {
         if (conn) conn.release();
     }
 };
 const createHangHoa = async (req, res) => {
     const { ID_LHH, ID_TCHH, TenHH, SoLuong, TrongLuong, DonGia, image } = req.body;
-<<<<<<< HEAD
-    if (!ID_LHH || !ID_TCHH || !TenHH || !SoLuong || !TrongLuong || !DonGia || !image) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-    let conn;
-    try {
-        conn = await connection.getConnection();
-        const sql = 'INSERT INTO HangHoa (ID_LHH, ID_TCHH, TenHH, SoLuong, TrongLuong, DonGia, image) VALUES (?, ?, ?, ?, ?, ?, ?)';
-        const [result] = await conn.query(sql, [ID_LHH, ID_TCHH, TenHH, SoLuong, TrongLuong, DonGia, image]);
-        res.status(201).json({ message: 'HangHoa created', id: result.insertId });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
-=======
 
     // Kiểm tra dữ liệu đầu vào
     if (!ID_LHH || !ID_TCHH || !TenHH || !SoLuong || !TrongLuong || !DonGia || !image) {
@@ -192,7 +170,6 @@ const createHangHoa = async (req, res) => {
     } catch (err) {
         console.error('Error creating HangHoa:', err);
         res.status(500).json({ error: 'Lỗi khi thêm hàng hóa' });
->>>>>>> thong
     } finally {
         if (conn) conn.release();
     }
@@ -200,21 +177,6 @@ const createHangHoa = async (req, res) => {
 const updateHangHoa = async (req, res) => {
     const id = req.params.id;
     const { ID_LHH, ID_TCHH, TenHH, SoLuong, TrongLuong, DonGia, image } = req.body;
-<<<<<<< HEAD
-    if (!ID_LHH || !ID_TCHH || !TenHH || !SoLuong || !TrongLuong || !DonGia || !image) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-    let conn;
-    try {
-        conn = await connection.getConnection();
-        const sql = 'UPDATE HangHoa SET ID_LHH = ?, ID_TCHH = ?, TenHH = ?, SoLuong = ?, TrongLuong = ?, DonGia = ?, image = ? WHERE ID_HH = ?';
-        const [result] = await conn.query(sql, [ID_LHH, ID_TCHH, TenHH, SoLuong, TrongLuong, DonGia, image, id]);
-        if (result.affectedRows === 0) return res.status(404).json({ error: 'HangHoa not found' });
-        res.json({ message: 'HangHoa updated' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
-=======
 
     // Kiểm tra dữ liệu đầu vào
     if (!ID_LHH || !ID_TCHH || !TenHH || !SoLuong || !TrongLuong || !DonGia || !image) {
@@ -237,29 +199,17 @@ const updateHangHoa = async (req, res) => {
     } catch (err) {
         console.error('Error updating HangHoa:', err);
         res.status(500).json({ error: 'Lỗi khi cập nhật hàng hóa' });
->>>>>>> thong
     } finally {
         if (conn) conn.release();
     }
 };
 const deleteHangHoa = async (req, res) => {
     const id = req.params.id;
-<<<<<<< HEAD
-=======
-
->>>>>>> thong
     let conn;
     try {
         conn = await connection.getConnection();
         const sql = 'DELETE FROM HangHoa WHERE ID_HH = ?';
         const [result] = await conn.query(sql, [id]);
-<<<<<<< HEAD
-        if (result.affectedRows === 0) return res.status(404).json({ error: 'HangHoa not found' });
-        res.json({ message: 'HangHoa deleted' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
-=======
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: 'Không tìm thấy hàng hóa' });
         }
@@ -267,7 +217,6 @@ const deleteHangHoa = async (req, res) => {
     } catch (err) {
         console.error('Error deleting HangHoa:', err);
         res.status(500).json({ error: 'Lỗi khi xóa hàng hóa' });
->>>>>>> thong
     } finally {
         if (conn) conn.release();
     }
@@ -276,16 +225,6 @@ const deleteHangHoa = async (req, res) => {
 // New function: Get HangHoa by LoaiHH
 const getHangHoaByLoai = async (req, res) => {
     const idLoai = req.params.id;
-<<<<<<< HEAD
-    let conn;
-    try {
-        conn = await connection.getConnection();
-        const [rows] = await conn.query('SELECT * FROM HangHoa WHERE ID_LHH = ?', [idLoai]);
-        res.json(rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
-=======
 
     let conn;
     try {
@@ -301,7 +240,6 @@ const getHangHoaByLoai = async (req, res) => {
     } catch (err) {
         console.error('Error fetching HangHoa by Loai:', err);
         res.status(500).json({ error: 'Lỗi khi lấy hàng hóa theo loại' });
->>>>>>> thong
     } finally {
         if (conn) conn.release();
     }

@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-import React from 'react';
-
-const UserPage = () => {
-    return (
-        <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-            <h1 className="text-3xl font-bold text-gray-900">Trang Người Dùng</h1>
-=======
 import React, { useEffect, useState, useCallback } from 'react'; // Import useCallback
 import { orderService } from '../../services/orderService.js'; 
 import { authService } from '../../services/authService.js'; // Ensure this import exists
@@ -1213,13 +1205,8 @@ const UserPage = () => {    const navigate = useNavigate();
                     )}
                 </main>
             </div>
->>>>>>> thong
         </div>
     );
 };
 
-<<<<<<< HEAD
 export default UserPage;
-=======
-export default UserPage;
->>>>>>> thong

@@ -1,18 +1,12 @@
 import axios from 'axios';
 
 const api = axios.create({
-<<<<<<< HEAD
-    baseURL: 'http://localhost:8080',
-=======
     baseURL: 'http://localhost:8080/api',
->>>>>>> thong
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-<<<<<<< HEAD
-=======
 // Add a request interceptor to include the auth token in all requests
 api.interceptors.request.use(
     (config) => {
@@ -31,5 +25,4 @@ api.interceptors.request.use(
     }
 );
 
->>>>>>> thong
 export default api;
