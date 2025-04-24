@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
+const socketIO = require('socket.io');
 require('dotenv').config();
 const routerUser = require('./src/routes/routeUser');
 const routerHH = require('./src/routes/routeHH');
@@ -12,8 +14,21 @@ const authMiddleware = require('./src/middleware/auth');
 const errorHandler = require('./src/middleware/errorHandler');
 
 const app = express();
+const server = http.createServer(app);
+const io = socketIO(server, {
+  cors: {
+    origin: ['http://localhost:5173', 'http://localhost:3000'], // Domain của frontend Vite/React
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: false
+  },
+  transports: ['websocket', 'polling'] // Hỗ trợ cả WebSocket và polling
+});
 const port = process.env.PORT || 8080;
 const hostname = process.env.HOSTNAME || 'localhost';
+
+// Truyền io object đến global để có thể sử dụng ở bất kỳ file nào
+global.io = io;
 
 app.use(cors());
 app.use(express.json());
@@ -34,6 +49,54 @@ app.use('/api', authMiddleware, routeOrder);
 // Error handling middleware - should be added after all routes
 app.use(errorHandler);
 
-app.listen(port, hostname, () => {
-    console.log(`Server listening at http://${hostname}:${port}`);
+// Khởi tạo kết nối Socket.IO
+io.on('connection', (socket) => {
+    console.log('Client connected: ', socket.id);
+
+    // Khi có client kết nối, thông báo cho tất cả clients
+    io.emit('serverMessage', {
+        type: 'info',
+        message: 'Kết nối Socket.IO thành công'
+    });    // Đăng ký client vào các phòng theo vai trò (nếu cần)
+    socket.on('joinRoom', (room) => {
+        socket.join(room);
+        console.log(`Client ${socket.id} joined room: ${room}`);
+    });
+      // Xử lý sự kiện khi nhân viên nhận đơn hàng
+    socket.on('order:accepted', (data) => {
+        console.log(`Đơn hàng ${data.idDH} đã được nhân viên ${data.staffId} nhận vào lúc ${data.time}`);
+        
+        // Gửi lại thông báo cho tất cả client khác
+        io.emit('order:update', {
+            ...data,
+            message: `Đơn hàng ${data.idDH} đã được nhân viên ${data.staffName || data.staffId} nhận.`
+        });
+    });
+    
+    // Xử lý sự kiện khi nhân viên thay đổi trạng thái đơn hàng
+    socket.on('order:status_changed', (data) => {
+        // Lấy orderCode và time fallback nếu không có
+        const orderCode = data.orderCode || data.MaVanDon || data.idDH || data.orderId || 'Không xác định';
+        const staffName = data.staffName || data.staffId || 'Nhân viên';
+        const oldStatus = data.oldStatus || 'Không xác định';
+        const newStatus = data.newStatus || 'Không xác định';
+        const time = data.time || data.timestamp || new Date().toLocaleString('vi-VN');
+        console.log(`Đơn hàng ${orderCode} đã được nhân viên ${staffName} thay đổi trạng thái từ "${oldStatus}" sang "${newStatus}" vào lúc ${time}`);
+        // Gửi lại thông báo cho tất cả client khác
+        io.emit('order:update', {
+            ...data,
+            orderCode,
+            message: `Đơn hàng ${orderCode} đã được nhân viên ${staffName} thay đổi trạng thái từ "${oldStatus}" sang "${newStatus}" vào lúc ${time}`
+        });
+    });
+
+    // Xử lý sự kiện khi client ngắt kết nối
+    socket.on('disconnect', () => {
+        console.log('Client disconnected: ', socket.id);
+    });
+});
+
+// Sử dụng server HTTP thay vì app Express
+server.listen(port, hostname, () => {
+    console.log(`Server listening with Socket.IO at http://${hostname}:${port}`);
 });

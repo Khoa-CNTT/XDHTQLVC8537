@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './OrderManagement.css';
 import { orderService } from '../../services/orderService';
+import socketService from '../../services/socketService';
+import { toast } from 'react-toastify';
 
 export const OrderManagement = () => {
   const [orders, setOrders] = useState([]);
@@ -58,6 +60,45 @@ export const OrderManagement = () => {
     fetchOrders();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, rowsPerPage, orderFilter, statusFilter, payerFilter, paymentStatusFilter]);
+    // Lắng nghe sự kiện socket.io để cập nhật đơn hàng theo thời gian thực
+  useEffect(() => {
+    // Lắng nghe khi có đơn hàng mới
+    const unsubNewOrder = socketService.onNewOrder((data) => {
+      console.log('Admin nhận được sự kiện đơn hàng mới:', data);
+      toast.info(`Đơn hàng mới ${data.maVanDon} vừa được tạo!`);
+      fetchOrders();
+    });
+    
+    // Lắng nghe khi có đơn hàng được tiếp nhận
+    const unsubOrderAccepted = socketService.onOrderAccepted((data) => {
+      console.log('Admin nhận được sự kiện đơn hàng được tiếp nhận:', data);
+      toast.info(`Đơn hàng ${data.maVanDon} đã được nhân viên tiếp nhận!`);
+      fetchOrders();
+    });
+    
+    // Lắng nghe khi trạng thái đơn hàng thay đổi
+    const unsubOrderStatusChanged = socketService.onOrderStatusChanged((data) => {
+      console.log('Admin nhận được sự kiện trạng thái đơn hàng thay đổi:', data);
+      toast.info(`Đơn hàng ${data.maVanDon} đã được cập nhật: ${data.newStatus}`);
+      fetchOrders();
+    });
+
+    // Lắng nghe khi đơn hàng bị hủy
+    const unsubOrderCanceled = socketService.onOrderCanceled((data) => {
+      console.log('Admin nhận được sự kiện đơn hàng bị hủy:', data);
+      toast.warning(`Đơn hàng ${data.maVanDon} đã bị hủy. Lý do: ${data.reason || 'Không có lý do'}`);
+      fetchOrders();
+    });
+    
+    // Hủy đăng ký lắng nghe khi component unmount
+    return () => {
+      unsubNewOrder();
+      unsubOrderAccepted();
+      unsubOrderStatusChanged();
+      unsubOrderCanceled();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [/* fetchOrders được gọi trong callback, nhưng thêm vào dependency sẽ gây re-render liên tục */]);
 
   // Handle approve action
   const handleApprove = async (orderId) => {

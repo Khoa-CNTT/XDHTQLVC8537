@@ -1,0 +1,75 @@
+.staff-notification-popup {
+    position: fixed;
+    top: 0; right: 0; left: 0; bottom: 0;
+    background: rgba(0,0,0,0.15);
+    z-index: 2000; /* Đảm bảo cao hơn modal khác */
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+}
+
+.staff-notification-content {
+    margin: 32px 32px 0 0;
+    background: #fff;
+    border-radius: 8px;
+    min-width: 340px;
+    max-width: 400px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    padding: 0;
+    overflow: hidden;
+    z-index: 2100;
+    box-sizing: border-box;
+}
+
+.staff-notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #38bdf8;
+    color: #fff;
+    padding: 12px 20px;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.staff-notification-list {
+    max-height: 350px;
+    overflow-y: auto;
+    padding: 12px 20px;
+}
+
+.notification-item {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 10px 0;
+}
+
+.notification-item.unread {
+  background: #fffbe6;
+  font-weight: bold;
+  border-left: 4px solid #f59e42;
+}
+
+.notification-message {
+    font-size: 15px;
+    color: #222;
+    margin-bottom: 4px;
+}
+
+.notification-time {
+    font-size: 12px;
+    color: #888;
+}
+
+.no-notification {
+    color: #888;
+    text-align: center;
+    padding: 24px 0;
+}

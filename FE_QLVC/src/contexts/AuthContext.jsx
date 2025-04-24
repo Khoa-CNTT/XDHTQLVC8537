@@ -1,6 +1,8 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
+import socketService from '../services/socketService';
 
-const AuthContext = createContext(null);
+// Xuất AuthContext để useAuth hook có thể sử dụng
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [auth, setAuth] = useState({
@@ -48,9 +50,7 @@ export const AuthProvider = ({ children }) => {
             window.removeEventListener('storage', checkAuthStatus);
             window.removeEventListener('auth-change', checkAuthStatus);
         };
-    }, []);
-
-    // Login function
+    }, []);    // Login function
     const login = (userData) => {
         localStorage.setItem('token', userData.token);
         localStorage.setItem('userInfo', JSON.stringify({
@@ -67,12 +67,16 @@ export const AuthProvider = ({ children }) => {
             isLoading: false
         });
 
+        // Kết nối socket với vai trò và ID người dùng
+        socketService.connect(userData.ID_TK, userData.Role);
+
         // Notify other components about auth change
         window.dispatchEvent(new Event('auth-change'));
-    };
-
-    // Logout function
+    };    // Logout function
     const logout = () => {
+        // Ngắt kết nối socket trước khi đăng xuất
+        socketService.disconnect();
+        
         localStorage.clear();
         setAuth({
             isAuthenticated: false,
@@ -81,20 +85,9 @@ export const AuthProvider = ({ children }) => {
             isLoading: false
         });
         window.dispatchEvent(new Event('auth-change'));
-    };
-
-    return (
+    };    return (
         <AuthContext.Provider value={{ auth, login, logout }}>
             {children}
         </AuthContext.Provider>
     );
-};
-
-// Custom hook to use auth context
-export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
 };

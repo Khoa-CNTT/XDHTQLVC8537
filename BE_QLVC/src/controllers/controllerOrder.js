@@ -1,5 +1,6 @@
 const { connection } = require('../config/database');
 const { executeQuery } = require('../utils/dbUtils');
+const socketEvents = require('../utils/socketEvents');
 
 /**
  * Get all orders with optional filtering
@@ -30,6 +31,7 @@ exports.getOrders = async (req, res, next) => {
         kh.ID_KH,
         kh.Ten_KH AS TenKhachHang,
         kh.DiaChi AS DiaChiKH,
+        tk_kh.SDT AS SDT_KH,
         nv.ID_NV,
         nv.Ten_NV AS TenNhanVien,
         nn.ID_NN,
@@ -44,6 +46,7 @@ exports.getOrders = async (req, res, next) => {
         tt.TienThuHo
       FROM DonHang dh
       JOIN KhachHang kh ON dh.ID_KH = kh.ID_KH
+      JOIN TaiKhoan tk_kh ON kh.ID_TK = tk_kh.ID_TK
       JOIN NhanVien nv ON dh.ID_NV = nv.ID_NV
       JOIN NguoiNhan nn ON dh.ID_NN = nn.ID_NN
       JOIN HangHoa hh ON dh.ID_HH = hh.ID_HH
@@ -293,14 +296,20 @@ exports.createOrder = async (req, res, next) => {
         ]
       );      await conn.commit();
 
+      const orderData = {
+        id: orderId,
+        maVanDon,
+        khachHangId,
+        status: 'pending'
+      };
+      
+      // Thông báo có đơn hàng mới qua socket
+      socketEvents.emitNewOrder(orderData);
+
       res.status(201).json({
         success: true,
         message: 'Đơn hàng đã được tạo thành công và đang chờ nhân viên xác nhận',
-        data: {
-          id: orderId,
-          maVanDon,
-          status: 'pending' // Trạng thái chờ nhân viên xác nhận
-        }
+        data: orderData
       });
     } catch (error) {
       await conn.rollback();
@@ -343,9 +352,9 @@ exports.updateOrderStatus = async (req, res, next) => {
       });
     }
 
-    const connection = await db.getConnection();
+    const conn = await connection.getConnection();
     try {
-      await connection.beginTransaction();
+      await conn.beginTransaction();
 
       // Update order status
       const updateQuery = `
@@ -354,8 +363,7 @@ exports.updateOrderStatus = async (req, res, next) => {
         WHERE ID_DH = ?
       `;
 
-      const [result] = await connection.execute(updateQuery, [status, id]);
-
+      const [result] = await conn.execute(updateQuery, [status, id]);
       if (result.affectedRows === 0) {
         return res.status(404).json({
           success: false,
@@ -370,36 +378,45 @@ exports.updateOrderStatus = async (req, res, next) => {
           SET NgayGiaoThucTe = ?
           WHERE ID_DH = ?
         `;
-
-        await connection.execute(updateDeliveryDateQuery, [new Date(), id]);
+        await conn.execute(updateDeliveryDateQuery, [new Date(), id]);
       }
 
-      // Create notification for status change
+      // --- OPENAI: Nếu trạng thái là Quá hạn giao, sinh thông báo AI ---
+      let notificationContent = `Đơn hàng đã được cập nhật trạng thái: ${status}`;
+      if (status === 'Quá hạn giao') {
+        // Lấy thông tin đơn hàng để truyền cho AI
+        const [orders] = await conn.execute('SELECT MaVanDon, Ten_KH AS TenKhachHang, DiaChi AS DiaChiNN FROM DonHang dh JOIN KhachHang kh ON dh.ID_KH = kh.ID_KH WHERE dh.ID_DH = ?', [id]);
+        const orderInfo = orders[0] || { ID_DH: id };
+        try {
+          notificationContent = await generateLateDeliveryMessage(orderInfo);
+        } catch (aiErr) {
+          console.error('OpenAI error:', aiErr);
+          notificationContent = `Đơn hàng ${orderInfo.MaVanDon || id} đã bị giao trễ.`;
+        }
+      }
+      // --- END OPENAI ---
+
       const insertNotificationQuery = `
         INSERT INTO ThongBao (ID_DH, NoiDung, NgayTB)
         VALUES (?, ?, ?)
       `;
 
-      await connection.execute(
+      await conn.execute(
         insertNotificationQuery,
-        [
-          id,
-          `Đơn hàng đã được cập nhật trạng thái: ${status}`,
-          new Date()
-        ]
+        [id, notificationContent, new Date()]
       );
 
-      await connection.commit();
+      await conn.commit();
 
       res.status(200).json({
         success: true,
         message: 'Cập nhật trạng thái đơn hàng thành công'
       });
     } catch (error) {
-      await connection.rollback();
+      await conn.rollback();
       throw error;
     } finally {
-      connection.release();
+      conn.release();
     }
   } catch (error) {
     next(error);
@@ -487,9 +504,9 @@ exports.cancelOrder = async (req, res, next) => {
       });
     }
 
-    const connection = await db.getConnection();
+    const conn = await connection.getConnection();
     try {
-      await connection.beginTransaction();
+      await conn.beginTransaction();
 
       // Update order status to cancelled
       const updateQuery = `
@@ -498,7 +515,7 @@ exports.cancelOrder = async (req, res, next) => {
         WHERE ID_DH = ?
       `;
 
-      const [result] = await connection.execute(updateQuery, [cancelReason || 'Không có lý do', id]);
+      const [result] = await conn.execute(updateQuery, [cancelReason || 'Không có lý do', id]);
 
       if (result.affectedRows === 0) {
         return res.status(404).json({
@@ -513,7 +530,7 @@ exports.cancelOrder = async (req, res, next) => {
         VALUES (?, ?, ?)
       `;
 
-      await connection.execute(
+      await conn.execute(
         insertNotificationQuery,
         [
           id,
@@ -522,17 +539,17 @@ exports.cancelOrder = async (req, res, next) => {
         ]
       );
 
-      await connection.commit();
+      await conn.commit();
 
       res.status(200).json({
         success: true,
         message: 'Huỷ đơn hàng thành công'
       });
     } catch (error) {
-      await connection.rollback();
+      await conn.rollback();
       throw error;
     } finally {
-      connection.release();
+      conn.release();
     }
   } catch (error) {
     next(error);
@@ -547,9 +564,9 @@ exports.updateCODStatus = async (req, res, next) => {
     const { id } = req.params;
     const { codAmount, codReceived } = req.body;
 
-    const connection = await db.getConnection();
+    const conn = await connection.getConnection();
     try {
-      await connection.beginTransaction();
+      await conn.beginTransaction();
 
       // Update payment record
       const updateQuery = `
@@ -558,7 +575,7 @@ exports.updateCODStatus = async (req, res, next) => {
         WHERE ID_DH = ?
       `;
 
-      const [result] = await connection.execute(updateQuery, [codAmount || 0, id]);
+      const [result] = await conn.execute(updateQuery, [codAmount || 0, id]);
 
       if (result.affectedRows === 0) {
         // If no record was updated, it might not exist yet
@@ -567,7 +584,7 @@ exports.updateCODStatus = async (req, res, next) => {
           SELECT ID_DH, 0, ? FROM DonHang WHERE ID_DH = ?
         `;
         
-        await connection.execute(insertQuery, [codAmount || 0, id]);
+        await conn.execute(insertQuery, [codAmount || 0, id]);
       }
 
       // If COD is received, update order status if it's delivered
@@ -576,7 +593,7 @@ exports.updateCODStatus = async (req, res, next) => {
           SELECT TrangThaiDonHang FROM DonHang WHERE ID_DH = ?
         `;
         
-        const [orderStatus] = await connection.execute(getOrderStatusQuery, [id]);
+        const [orderStatus] = await conn.execute(getOrderStatusQuery, [id]);
         
         if (orderStatus && orderStatus.length > 0 && orderStatus[0].TrangThaiDonHang === 'Đã giao') {
           // Create notification for COD received
@@ -585,7 +602,7 @@ exports.updateCODStatus = async (req, res, next) => {
             VALUES (?, ?, ?)
           `;
 
-          await connection.execute(
+          await conn.execute(
             insertNotificationQuery,
             [
               id,
@@ -596,17 +613,17 @@ exports.updateCODStatus = async (req, res, next) => {
         }
       }
 
-      await connection.commit();
+      await conn.commit();
 
       res.status(200).json({
         success: true,
         message: 'Cập nhật thông tin COD thành công'
       });
     } catch (error) {
-      await connection.rollback();
+      await conn.rollback();
       throw error;
     } finally {
-      connection.release();
+      conn.release();
     }
   } catch (error) {
     next(error);
@@ -650,9 +667,9 @@ exports.acceptOrder = async (req, res, next) => {
       });
     }
 
-    const connection = await db.getConnection();
+    const conn = await connection.getConnection();
     try {
-      await connection.beginTransaction();
+      await conn.beginTransaction();
 
       // Cập nhật nhân viên xử lý đơn hàng nếu có thay đổi
       const updateStaffQuery = `
@@ -661,7 +678,7 @@ exports.acceptOrder = async (req, res, next) => {
         WHERE ID_DH = ?
       `;
 
-      await connection.execute(updateStaffQuery, [staffId, id]);
+      await conn.execute(updateStaffQuery, [staffId, id]);
 
       // Cập nhật trạng thái đơn hàng thành "Đã nhận hàng"
       const updateStatusQuery = `
@@ -670,7 +687,7 @@ exports.acceptOrder = async (req, res, next) => {
         WHERE ID_DH = ?
       `;
 
-      const [result] = await connection.execute(updateStatusQuery, [id]);
+      const [result] = await conn.execute(updateStatusQuery, [id]);
 
       if (result.affectedRows === 0) {
         return res.status(404).json({
@@ -685,7 +702,7 @@ exports.acceptOrder = async (req, res, next) => {
         VALUES (?, ?, ?)
       `;
 
-      await connection.execute(
+      await conn.execute(
         insertNotificationQuery,
         [
           id,
@@ -694,17 +711,17 @@ exports.acceptOrder = async (req, res, next) => {
         ]
       );
 
-      await connection.commit();
+      await conn.commit();
 
       res.status(200).json({
         success: true,
         message: 'Đã tiếp nhận đơn hàng thành công'
       });
     } catch (error) {
-      await connection.rollback();
+      await conn.rollback();
       throw error;
     } finally {
-      connection.release();
+      conn.release();
     }
   } catch (error) {
     next(error);
@@ -719,22 +736,22 @@ exports.acceptPendingOrder = async (req, res, next) => {
     const { id } = req.params; // ID_DHT - ID của đơn hàng tạm
     const { staffId } = req.body;
 
+    console.log(`Accepting pending order: ID_DHT=${id}, staffId=${staffId}`);
+
     if (!staffId) {
       return res.status(400).json({
         success: false,
         message: 'ID nhân viên là bắt buộc'
       });
-    }
-
-    const connection = await db.getConnection();
+    }    const conn = await connection.getConnection();
     try {
-      await connection.beginTransaction();
+      await conn.beginTransaction();
 
       // Lấy thông tin đơn hàng tạm
       const getPendingOrderQuery = `
         SELECT * FROM DonHangTam WHERE ID_DHT = ?
       `;
-      const [pendingOrderResult] = await connection.execute(getPendingOrderQuery, [id]);
+      const [pendingOrderResult] = await conn.execute(getPendingOrderQuery, [id]);
       
       if (pendingOrderResult.length === 0) {
         return res.status(404).json({
@@ -749,7 +766,7 @@ exports.acceptPendingOrder = async (req, res, next) => {
       const getPaymentQuery = `
         SELECT * FROM ThanhToanTam WHERE ID_DHT = ?
       `;
-      const [paymentResult] = await connection.execute(getPaymentQuery, [id]);
+      const [paymentResult] = await conn.execute(getPaymentQuery, [id]);
       const payment = paymentResult.length > 0 ? paymentResult[0] : { TienShip: 0, TienThuHo: 0 };
 
       // Chuyển đơn hàng từ bảng tạm sang bảng chính thức
@@ -760,7 +777,7 @@ exports.acceptPendingOrder = async (req, res, next) => {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
-      const [orderResult] = await connection.execute(
+      const [orderResult] = await conn.execute(
         insertOrderQuery,
         [
           staffId, 
@@ -784,7 +801,7 @@ exports.acceptPendingOrder = async (req, res, next) => {
         VALUES (?, ?, ?)
       `;
 
-      await connection.execute(
+      await conn.execute(
         insertPaymentQuery,
         [orderId, payment.TienShip, payment.TienThuHo]
       );
@@ -795,7 +812,7 @@ exports.acceptPendingOrder = async (req, res, next) => {
         VALUES (?, ?, ?)
       `;
 
-      await connection.execute(
+      await conn.execute(
         insertNotificationQuery,
         [
           orderId,
@@ -805,25 +822,30 @@ exports.acceptPendingOrder = async (req, res, next) => {
       );
 
       // Xóa đơn hàng tạm và thông tin liên quan
-      await connection.execute(`DELETE FROM ThongBaoTam WHERE ID_DHT = ?`, [id]);
-      await connection.execute(`DELETE FROM ThanhToanTam WHERE ID_DHT = ?`, [id]);
-      await connection.execute(`DELETE FROM DonHangTam WHERE ID_DHT = ?`, [id]);
+      await conn.execute(`DELETE FROM ThongBaoTam WHERE ID_DHT = ?`, [id]);
+      await conn.execute(`DELETE FROM ThanhToanTam WHERE ID_DHT = ?`, [id]);
+      await conn.execute(`DELETE FROM DonHangTam WHERE ID_DHT = ?`, [id]);        
+      await conn.commit();
 
-      await connection.commit();
+      const orderData = {
+        id: orderId,
+        maVanDon: pendingOrder.MaVanDon,
+        khachHangId: pendingOrder.ID_KH
+      };
+      
+      // Gửi thông báo qua socket về việc đơn hàng đã được tiếp nhận
+      socketEvents.emitOrderAccepted(orderData, staffId);
 
       res.status(200).json({
         success: true,
         message: 'Đã tiếp nhận đơn hàng thành công',
-        data: {
-          id: orderId,
-          maVanDon: pendingOrder.MaVanDon
-        }
+        data: orderData
       });
     } catch (error) {
-      await connection.rollback();
+      await conn.rollback();
       throw error;
     } finally {
-      connection.release();
+      conn.release();
     }
   } catch (error) {
     next(error);

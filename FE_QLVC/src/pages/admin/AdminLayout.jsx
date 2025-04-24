@@ -22,7 +22,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { UserManagement } from "./UserManagement";
 import { OrderManagement } from "./OrderManagement";
-import { useAuth } from "../../contexts/AuthContext"; // Add import for useAuth
+import { useAuth } from "../../hooks/useAuth"; // Cập nhật đường dẫn import của useAuth
 import RevenueReport from "./reports/RevenueReport";
 
 // Menu structure (có thể tách ra file riêng)

@@ -4,12 +4,16 @@ import { AdminLayout } from './pages/admin/AdminLayout';
 import UserPage from './pages/user/UserPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './hooks/useAuth';
+import socketService from './services/socketService';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './assets/App.css';
-// Nếu bạn đã cài đặt react-toastify, hãy bỏ comment dòng dưới
-// import { toast } from 'react-toastify';
 
-function App() {
+// Import staff page if available, if not UserPage will handle staff view conditionally
+import StaffPage from './pages/staff/StaffPage'; 
+
+function App() {  
   const { auth } = useAuth();
 
   // Thiết lập listener toàn cục để xử lý lỗi xác thực
@@ -21,11 +25,14 @@ function App() {
       localStorage.removeItem('token');
       localStorage.removeItem('userInfo');
       
+      // Ngắt kết nối socket trước khi đăng xuất
+      socketService.disconnect();
+      
       // Reload trang để chuyển hướng đến trang đăng nhập
       window.location.href = '/login';
       
       // Hiển thị thông báo
-      alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     };
     
     // Đăng ký sự kiện lắng nghe
@@ -37,20 +44,66 @@ function App() {
     };
   }, []);
   
+  // Kết nối socket khi đã xác thực
+  useEffect(() => {
+    if (auth.isAuthenticated && auth.userId) {
+      // Kết nối socket với thông tin người dùng
+      socketService.connect(auth.userId, auth.userRole);
+      
+      // Đăng ký các lắng nghe sự kiện
+      const unsubNewOrder = socketService.onNewOrder((data) => {
+        console.log('Đơn hàng mới:', data);
+        // Xử lý cập nhật UI nếu cần
+      });
+      
+      const unsubOrderAccepted = socketService.onOrderAccepted((data) => {
+        console.log('Đơn hàng được tiếp nhận:', data);
+        // Xử lý cập nhật UI nếu cần
+      });
+      
+      return () => {
+        // Hủy đăng ký các lắng nghe khi unmount
+        unsubNewOrder();
+        unsubOrderAccepted();
+        
+        // Ngắt kết nối socket khi người dùng đăng xuất
+        if (!auth.isAuthenticated) {
+          socketService.disconnect();
+        }
+      };
+    } else {
+      // Ngắt kết nối nếu không còn xác thực
+      socketService.disconnect();
+    }
+  }, [auth.isAuthenticated, auth.userId, auth.userRole]);
+  
   // Show loading state while checking authentication
   if (auth.isLoading) {
     return <div className="loading-container">Loading...</div>;
   }
 
+  // Helper function to determine redirect path based on user role
+  const getRedirectPath = () => {
+    switch (auth.userRole) {
+      case 'admin':
+        return '/admin';
+      case 'staff':
+        return '/staff';
+      default:
+        return '/user';
+    }
+  };
+
   return (
     <BrowserRouter>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
       <Routes>
         {/* Login Route */}
         <Route
           path="/login"
           element={
             auth.isAuthenticated
-              ? <Navigate to={auth.userRole === 'admin' ? '/admin' : '/'} replace />
+              ? <Navigate to={getRedirectPath()} replace />
               : <LoginPage />
           }
         />
@@ -60,27 +113,61 @@ function App() {
           path="/register"
           element={
             auth.isAuthenticated
-              ? <Navigate to={auth.userRole === 'admin' ? '/admin' : '/'} replace />
+              ? <Navigate to={getRedirectPath()} replace />
               : <RegisterPage />
           }
         />
 
-        {/* User Route */}
+        {/* User Route - Customer role */}
         <Route
-          path="/"
+          path="/user/*"
           element={
             auth.isAuthenticated
-              ? <UserPage />
+              ? (auth.userRole === 'user' 
+                ? <UserPage />
+                : <Navigate to={getRedirectPath()} replace />)
               : <Navigate to="/login" replace />
           }
         />
         
-        {/* Admin Routes - Requires authentication with admin role */}
+        {/* Staff Route - Staff role */}
+        <Route
+          path="/staff/*"
+          element={
+            auth.isAuthenticated
+              ? (auth.userRole === 'staff' 
+                ? <StaffPage />
+                : <Navigate to={getRedirectPath()} replace />)
+              : <Navigate to="/login" replace />
+          }
+        />
+        
+        {/* Admin Routes - Admin role */}
         <Route
           path="/admin/*"
           element={
             auth.isAuthenticated && auth.userRole === 'admin'
               ? <AdminLayout />
+              : <Navigate to="/login" replace />
+          }
+        />
+
+        {/* Root route - Redirects based on role */}
+        <Route
+          path="/"
+          element={
+            auth.isAuthenticated
+              ? <Navigate to={getRedirectPath()} replace />
+              : <Navigate to="/login" replace />
+          }
+        />
+
+        {/* Catch-all redirect to appropriate route based on role or to login */}
+        <Route
+          path="*"
+          element={
+            auth.isAuthenticated
+              ? <Navigate to={getRedirectPath()} replace />
               : <Navigate to="/login" replace />
           }
         />
