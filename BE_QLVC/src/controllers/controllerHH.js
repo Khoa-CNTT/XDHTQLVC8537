@@ -205,7 +205,6 @@ const updateHangHoa = async (req, res) => {
 };
 const deleteHangHoa = async (req, res) => {
     const id = req.params.id;
-
     let conn;
     try {
         conn = await connection.getConnection();

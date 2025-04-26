@@ -39,6 +39,9 @@ const UserPage = () => {
     });
     const [productImagePreview, setProductImagePreview] = useState(null);
 
+    // Ngăn submit lặp khi đang gửi đơn hàng (cả cash và online)
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     // Memoize fetchUserData to prevent recreation on every render
     const fetchUserData = useCallback(async (userId, userRole) => {
         setLoading(true);
@@ -117,6 +120,10 @@ const UserPage = () => {
                     })
                     .catch(error => console.error('Lỗi khi cập nhật danh sách đơn hàng:', error));
             }
+            // Nếu user đang chờ xác nhận chuyển khoản thì đóng modal chờ
+            if (window.setWaitingAdminConfirm) {
+                window.setWaitingAdminConfirm(false);
+            }
         });
         
         // Đăng ký lắng nghe sự kiện thay đổi trạng thái đơn hàng
@@ -132,11 +139,29 @@ const UserPage = () => {
                     .catch(error => console.error('Lỗi khi cập nhật danh sách đơn hàng:', error));
             }
         });
+
+        // Đăng ký lắng nghe sự kiện thông báo chung (có thể dùng cho xác nhận chuyển khoản)
+        const unsubNotification = socketService.onNotification((data) => {
+            if (data && data.type === 'order_accepted' && user.Role === 'user' && user.ID_KH) {
+                // Đơn hàng online đã được admin xác nhận chuyển khoản
+                orderService.getOrdersByCustomer(user.ID_KH)
+                    .then(updatedOrders => {
+                        setUserOrders(updatedOrders || []);
+                        toast.success('Admin đã xác nhận chuyển khoản, đơn hàng của bạn đã được tiếp nhận!');
+                    })
+                    .catch(error => console.error('Lỗi khi cập nhật danh sách đơn hàng:', error));
+                // Đóng modal chờ xác nhận nếu có
+                if (window.setWaitingAdminConfirm) {
+                    window.setWaitingAdminConfirm(false);
+                }
+            }
+        });
         
         // Hủy đăng ký các lắng nghe khi component unmount
         return () => {
             unsubOrderAccepted();
             unsubOrderStatusChanged();
+            unsubNotification();
         };
     }, [auth.isAuthenticated, user]);
 
@@ -220,6 +245,7 @@ const UserPage = () => {
     };
 
     // Rest of the handlers kept the same...
+    // Khi đóng modal thanh toán, reset cả createdOrder và showPaymentForm
     const handleClosePaymentForm = () => {
         setShowPaymentForm(false);
         setCreatedOrder(null);
@@ -248,60 +274,57 @@ const UserPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    };    // Xử lý nhất quán cho tất cả các phương thức thanh toán
+    const handleOrderSubmit = async (e, options = {}) => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+        if (e) e.preventDefault();
 
-    const handleOrderSubmit = async (e) => {
-        // Existing handleOrderSubmit code
-        e.preventDefault();
-        // Ensure user and user.ID_KH exist before proceeding
+        // Xử lý đóng modal nếu được yêu cầu
+        if (options.closeModal) {
+            setShowPaymentForm(false);
+            setIsSubmitting(false);
+            return;
+        }
+
         if (!user || !user.ID_KH) {
             setError('Không thể tạo đơn hàng: thiếu thông tin khách hàng.');
+            setIsSubmitting(false);
             return;
         }
         setError(null);
         setLoading(true);
-        
         try {
             // Xác định ID tính chất hàng hóa dựa trên tính chất được chọn
-            // Bây giờ chúng ta đã lưu trữ ID trực tiếp trong checkbox
-            let ID_TCHH = 0; // Mặc định không có tính chất
-
+            let ID_TCHH = 0;
             if (order.productCharacteristics && order.productCharacteristics.length > 0) {
-                // Chọn ID cao nhất (ưu tiên) từ các tính chất đã chọn
                 ID_TCHH = Math.max(...order.productCharacteristics.map(id => parseInt(id)));
             }
-            
-            // Nếu không có tính chất nào được chọn, gán giá trị mặc định là 1
             if (ID_TCHH === 0) ID_TCHH = 1;
-
-            // Tạo đối tượng hàng hóa trước với đầy đủ trường bắt buộc
             const productData = {
                 tenHH: order.productName,
-                trongLuong: parseFloat(order.weight) || 0.1, // Đảm bảo giá trị hợp lệ
-                ID_LHH: parseInt(order.productType) || 1,    // ID Loại hàng hóa - khóa ngoại
-                ID_TCHH: ID_TCHH,                           // ID Tính chất hàng hóa - khóa ngoại
-                donGia: 0, // Sẽ được tính ở backend hoặc người dùng có thể nhập
-                soLuong: parseInt(order.quantity) || 1,     // Sử dụng số lượng từ form
-                image: 'default.jpg' // Giá trị mặc định cho trường bắt buộc
+                trongLuong: parseFloat(order.weight) || 0.1,
+                ID_LHH: parseInt(order.productType) || 1,
+                ID_TCHH: ID_TCHH,
+                donGia: 0,
+                soLuong: parseInt(order.quantity) || 1,
+                image: 'default.jpg'
             };
-
-            // Chuẩn hóa dữ liệu cho phù hợp với API createOrder
             const orderData = {
                 khachHangId: user.ID_KH,
-                hangHoa: productData, // Gửi dữ liệu hàng hóa trực tiếp
+                hangHoa: productData,
                 nguoiNhan: {
                     ten: order.receiverName,
                     diaChi: order.receiverAddress,
                     sdt: order.receiverPhone
-                },                  
+                },
                 phiGiaoHang: calculateShippingFee(),
-                tienShip: calculateShippingFee(), // Thay thế tienHang bằng tienShip
-                tienThuHo: parseInt(order.codAmount) || 0, 
+                tienShip: calculateShippingFee(),
+                tienThuHo: parseInt(order.codAmount) || 0,
                 ghiChu: order.notes || '',
-                trangThaiDonHang: 'Đang chờ xử lý' // Trạng thái ban đầu khi tạo đơn
+                trangThaiDonHang: 'Đang chờ xử lý',
+                paymentMethod: options.paymentMethod || 'cash'
             };
-
-            // Thêm thông tin mô tả tính chất hàng hóa vào ghi chú để dễ đọc
             if (order.productCharacteristics && order.productCharacteristics.length > 0) {
                 const tinhChatNames = {
                     '1': 'Giá trị cao',
@@ -311,27 +334,14 @@ const UserPage = () => {
                     '5': 'Chất lỏng',
                     '6': 'Từ tính, Pin'
                 };
-                
                 const tinhChatDescriptions = order.productCharacteristics
                     .map(id => tinhChatNames[id] || `Tính chất ${id}`)
                     .join(', ');
-                    
                 orderData.ghiChu += ' | Tính chất: ' + tinhChatDescriptions;
             }
-
+            // Gửi đơn hàng lên server
             const response = await orderService.createOrder(orderData);
-            
-            // Lưu thông tin đơn hàng vừa tạo
-            setCreatedOrder(response.data);
-            
-            // Hiển thị form thanh toán
-            setShowPaymentForm(true);
-
-            // Refresh user orders
-            const updatedOrders = await orderService.getOrdersByCustomer(user.ID_KH);
-            setUserOrders(updatedOrders || []);
-
-            // Reset form
+            // Reset form sau khi tạo đơn thành công
             setOrder({
                 ID_NV: '',
                 receiverName: '',
@@ -344,13 +354,29 @@ const UserPage = () => {
                 codAmount: 0,
                 notes: '',
                 productImage: null,
-                quantity: 1 // Reset số lượng về 1
+                quantity: 1
             });
+            
+            // Cập nhật danh sách đơn hàng
+            const updatedOrders = await orderService.getOrdersByCustomer(user.ID_KH);
+            setUserOrders(updatedOrders || []);
+            // Lưu thông tin đơn hàng đã tạo
+            setCreatedOrder(response.data);
+            
+            // Xử lý dựa theo phương thức thanh toán
+            if (options.paymentMethod === "online") {
+                setShowPaymentForm(true);
+            } else {
+                setShowPaymentForm(false);
+            }
+            
+            return response;
         } catch (err) {
             setError(err.message || 'Lỗi khi tạo đơn hàng');
             console.error('Error creating order:', err);
         } finally {
             setLoading(false);
+            setIsSubmitting(false);
         }
     };
 

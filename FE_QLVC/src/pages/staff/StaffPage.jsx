@@ -539,6 +539,7 @@ const StaffPage = () => {
                                                 <th>Hàng hoá</th>
                                                 <th>Ngày tạo</th>
                                                 <th>Tiền thu hộ</th>
+                                                <th>Trạng thái thanh toán</th> {/* Thêm cột mới */}
                                                 <th>Thao tác</th>
                                             </tr>
                                         </thead>
@@ -559,6 +560,13 @@ const StaffPage = () => {
                                                                 style: 'currency', 
                                                                 currency: 'VND' 
                                                             }).format(order.TienThuHo) : '0 đ'}
+                                                    </td>
+                                                    <td>
+                                                        {/* Hiển thị trạng thái thanh toán */}
+                                                        {order.paymentMethod === 'cash' && 'Tiền mặt'}
+                                                        {order.paymentMethod === 'online' && !order.isTransferConfirmed && 'Chuyển khoản (chờ xác nhận)'},
+                                                        {order.paymentMethod === 'online' && order.isTransferConfirmed && 'Chuyển khoản (đã xác nhận)'},
+                                                        {!order.paymentMethod && 'Không xác định'}
                                                     </td>
                                                     <td className="order-actions">
                                                         <button 

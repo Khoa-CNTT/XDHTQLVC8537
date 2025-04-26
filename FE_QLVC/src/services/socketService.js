@@ -143,12 +143,41 @@ class SocketService {
       this.callbacks.notification = this.callbacks.notification.filter(cb => cb !== callback);
     };
   }
-
   // Ngắt kết nối socket
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
+    }
+  }
+
+  // Gửi thông báo xác nhận thanh toán thành công
+  sendPaymentConfirmation(orderId, userId, isOnlinePayment = false) {
+    if (this.socket && this.socket.connected && userId) {
+      const eventData = {
+        orderId,
+        userId,
+        timestamp: Date.now(),
+        paymentType: isOnlinePayment ? 'online' : 'cash',
+        message: isOnlinePayment 
+          ? 'Thanh toán đã được xác nhận thành công'
+          : 'Đơn hàng của bạn đã được xác nhận'
+      };
+      
+      // Gửi thông báo xác nhận thanh toán hoặc xác nhận đơn hàng
+      this.socket.emit('payment_confirmed', eventData);
+      
+      // Gửi thông báo tới khách hàng cụ thể
+      this.socket.emit('send_notification', {
+        to: `customer_${userId}`,
+        data: eventData
+      });
+      
+      console.log('Đã gửi thông báo xác nhận cho khách hàng:', orderId, userId, isOnlinePayment ? 'thanh toán online' : 'thanh toán khi nhận hàng');
+      return true;
+    } else {
+      console.error('Socket không kết nối hoặc thiếu thông tin người dùng, không thể gửi thông báo xác nhận');
+      return false;
     }
   }
 }

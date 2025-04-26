@@ -24,6 +24,9 @@ import { UserManagement } from "./UserManagement";
 import { OrderManagement } from "./OrderManagement";
 import { useAuth } from "../../hooks/useAuth"; // Cập nhật đường dẫn import của useAuth
 import RevenueReport from "./reports/RevenueReport";
+import { toast } from 'react-toastify';
+import socketService from '../../services/socketService';
+import XacNhanDonHang from "./xacnhan";
 
 // Menu structure (có thể tách ra file riêng)
 const MENU_STRUCTURE = [
@@ -57,13 +60,59 @@ const MENU_STRUCTURE = [
     ],  },
 ];
 
-// Import component thống kê tiền hàng
+// PendingOrders component (đặt TRƯỚC CONTENT_MAP)
+const PendingOrders = () => {
+  const [pendingOrders, setPendingOrders] = useState([]);
 
+  useEffect(() => {
+    const unsubNewOrder = socketService.onNewOrder((order) => {
+      setPendingOrders(prev => [...prev, order]);
+      toast.info(`Đơn hàng mới ${order.maVanDon || order.MaVanDon || 'N/A'} vừa được tạo!`);
+    });
+    return () => {
+      unsubNewOrder && unsubNewOrder();
+    };
+  }, []);
+
+  const handleConfirmPendingOrder = async (order) => {
+    if (window.confirm(`Xác nhận tiếp nhận đơn hàng mới: ${order.maVanDon || order.MaVanDon || 'N/A'}?`)) {
+      // TODO: Gọi API lưu vào database tạm nếu cần
+      setPendingOrders(prev => prev.filter(o => o !== order));
+      toast.success('Đã xác nhận đơn hàng!');
+    }
+  };
+
+  return (
+    <div className="pending-orders-alert">
+      <h3>Đơn hàng mới chờ xác nhận:</h3>
+      {pendingOrders.length === 0 ? (
+        <div>Không có đơn hàng chờ xác nhận.</div>
+      ) : (
+        <ul>
+          {pendingOrders.map((order, idx) => (
+            <li key={order.maVanDon || order.MaVanDon || idx} className="pending-order-item">
+              <span>
+                Mã vận đơn: <b>{order.maVanDon || order.MaVanDon || 'N/A'}</b> - Người nhận: <b>{order.receiverName || order.TenNguoiNhan || 'N/A'}</b>
+              </span>
+              <button
+                className="confirm-pending-btn"
+                onClick={() => handleConfirmPendingOrder(order)}
+              >
+                Xác nhận
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 // Component mapping để render nội dung chính
 const CONTENT_MAP = {
   users: UserManagement,
   "shipping-management": OrderManagement,
+  "pending-orders": XacNhanDonHang,
   "revenue-report": RevenueReport,
   // Thêm các mapping khác khi cần
 };

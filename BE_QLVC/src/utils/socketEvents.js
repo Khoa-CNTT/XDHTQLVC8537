@@ -20,14 +20,27 @@ const EVENT_TYPES = {
 const emitNewOrder = (order) => {
   if (!global.io) return;
   
+<<<<<<< HEAD
   global.io.emit(EVENT_TYPES.NEW_ORDER, {
     orderId: order.id || order.ID_DHT,
     maVanDon: order.maVanDon || order.MaVanDon,
+=======
+  // Điều chỉnh để bao gồm thêm thông tin cần thiết cho trang xác nhận admin
+  global.io.emit(EVENT_TYPES.NEW_ORDER, {
+    orderId: order.id || order.ID_DHT,
+    maVanDon: order.maVanDon || order.MaVanDon,
+    receiverName: order.receiverName || order.tenNguoiNhan || order.Ten_NN || null,
+    paymentMethod: order.paymentMethod || null,
+>>>>>>> thong
     timestamp: Date.now(),
     message: 'Có đơn hàng mới được tạo'
   });
 
+<<<<<<< HEAD
   // Thông báo riêng cho phòng nhân viên
+=======
+  // Thông báo riêng cho phòng nhân viên - gửi toàn bộ thông tin đơn hàng
+>>>>>>> thong
   global.io.to('staff').emit(EVENT_TYPES.NOTIFICATION, {
     type: 'new_order',
     message: 'Có đơn hàng mới cần xử lý!',

@@ -182,7 +182,8 @@ exports.createOrder = async (req, res, next) => {
         phiGiaoHang,
         tienShip,
         tienThuHo,
-        ghiChu
+        ghiChu,
+        paymentMethod // Thêm trường phương thức thanh toán
       } = req.body;
       
       // Xử lý trường hợp gửi hangHoa thay vì hangHoaId
@@ -257,9 +258,10 @@ exports.createOrder = async (req, res, next) => {
       const insertOrderQuery = `
         INSERT INTO DonHangTam (
           ID_KH, ID_HH, ID_NN, MaVanDon, 
-          NgayTaoDon, NgayGiaoDuKien, TrangThaiDonHang, PhiGiaoHang, GhiChu
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;      const [orderResult] = await conn.execute(
+          NgayTaoDon, NgayGiaoDuKien, TrangThaiDonHang, PhiGiaoHang, GhiChu, paymentMethod
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      const [orderResult] = await conn.execute(
         insertOrderQuery,
         [
           khachHangId, 
@@ -270,7 +272,8 @@ exports.createOrder = async (req, res, next) => {
           ngayGiaoDuKien,
           'Đang chờ xử lý', // Luôn sử dụng trạng thái "Đang chờ xử lý" cho đơn hàng tạm
           phiGiaoHang,
-          ghiChu || null
+          ghiChu || null,
+          paymentMethod || null // Lưu phương thức thanh toán
         ]
       );
 
@@ -296,14 +299,48 @@ exports.createOrder = async (req, res, next) => {
         ]
       );      await conn.commit();
 
+      // Lấy tên người nhận để gửi lên socket cho admin
+      let receiverName = '';
+      try {
+        const [nguoiNhanRows] = await conn.execute('SELECT Ten_NN FROM NguoiNhan WHERE ID_NN = ?', [nguoiNhanId]);
+        receiverName = nguoiNhanRows && nguoiNhanRows[0] ? nguoiNhanRows[0].Ten_NN : '';
+      } catch (e) {
+        receiverName = '';
+      }
+      
+      // Lấy thông tin khách hàng
+      let tenKhachHang = '';
+      try {
+        const [khachHangRows] = await conn.execute('SELECT Ten_KH FROM KhachHang WHERE ID_KH = ?', [khachHangId]);
+        tenKhachHang = khachHangRows && khachHangRows[0] ? khachHangRows[0].Ten_KH : '';
+      } catch (e) {
+        tenKhachHang = '';
+      }
+
+      // Lấy phương thức thanh toán từ đơn hàng tạm (nếu có)
+      let paymentMethodValue = paymentMethod || 'cash'; // Mặc định là tiền mặt
+
+      // Chuẩn bị đầy đủ thông tin để gửi qua socket
       const orderData = {
         id: orderId,
         maVanDon,
         khachHangId,
+        paymentMethod: paymentMethodValue,
+        receiverName, // Thêm trường này để FE admin hiển thị
+        tenKhachHang, // Thông tin khách hàng
+        nguoiNhan: { // Thông tin người nhận đầy đủ
+          id: nguoiNhanId,
+          ten: receiverName,
+          diaChi: nguoiNhan.diaChi,
+          sdt: nguoiNhan.sdt
+        },
+        hangHoa: {  // Thông tin hàng hóa
+          id: finalHangHoaId,
+          tenHH: hangHoa ? hangHoa.tenHH : null,
+        },
         status: 'pending'
       };
-      
-      // Thông báo có đơn hàng mới qua socket
+      // Chỉ emit socket khi insert thành công và không bị trùng mã vận đơn
       socketEvents.emitNewOrder(orderData);
 
       res.status(201).json({
@@ -773,8 +810,8 @@ exports.acceptPendingOrder = async (req, res, next) => {
       const insertOrderQuery = `
         INSERT INTO DonHang (
           ID_NV, ID_KH, ID_HH, ID_NN, MaVanDon, 
-          NgayTaoDon, NgayGiaoDuKien, TrangThaiDonHang, PhiGiaoHang, GhiChu
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          NgayTaoDon, NgayGiaoDuKien, TrangThaiDonHang, PhiGiaoHang, GhiChu, paymentMethod, isTransferConfirmed, transferConfirmedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const [orderResult] = await conn.execute(
@@ -789,7 +826,10 @@ exports.acceptPendingOrder = async (req, res, next) => {
           pendingOrder.NgayGiaoDuKien,
           'Đã tiếp nhận', // Cập nhật trạng thái đơn hàng khi nhân viên nhận
           pendingOrder.PhiGiaoHang,
-          pendingOrder.GhiChu
+          pendingOrder.GhiChu,
+          pendingOrder.paymentMethod || null,
+          pendingOrder.isTransferConfirmed || 0,
+          pendingOrder.transferConfirmedAt || null
         ]
       );
 
@@ -932,6 +972,7 @@ exports.getPendingOrders = async (req, res, next) => {
         dht.TrangThaiDonHang,
         dht.PhiGiaoHang,
         dht.GhiChu,
+        dht.paymentMethod,
         kh.ID_KH,
         kh.Ten_KH AS TenKhachHang,
         kh.DiaChi AS DiaChiKH,
@@ -982,3 +1023,56 @@ function generateShippingCode() {
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   return `VD${timestamp.substring(timestamp.length - 6)}${random}`;
 }
+
+// Xác nhận chuyển khoản cho đơn hàng tạm (admin)
+exports.confirmTransferForPendingOrder = async (req, res, next) => {
+  try {
+    const { id } = req.params; // ID_DHT
+    const conn = await connection.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      // Cập nhật trạng thái xác nhận chuyển khoản
+      const updateQuery = `
+        UPDATE DonHangTam
+        SET isTransferConfirmed = 1, transferConfirmedAt = NOW()
+        WHERE ID_DHT = ?
+      `;
+      const [result] = await conn.execute(updateQuery, [id]);
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy đơn hàng tạm'
+        });
+      }
+
+      // Lấy thông tin đơn hàng tạm để emit socket cho user
+      const [orderRows] = await conn.execute(
+        'SELECT ID_KH, MaVanDon FROM DonHangTam WHERE ID_DHT = ?',
+        [id]
+      );
+      const order = orderRows[0];
+      await conn.commit();
+
+      // Emit socket event cho user (phòng customer_{id})
+      if (order && order.ID_KH) {
+        socketEvents.emitOrderAccepted(
+          { id: id, maVanDon: order.MaVanDon, khachHangId: order.ID_KH },
+          null // Không cần staffId ở bước này
+        );
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Đã xác nhận chuyển khoản cho đơn hàng tạm'
+      });
+    } catch (error) {
+      await conn.rollback();
+      throw error;
+    } finally {
+      conn.release();
+    }
+  } catch (error) {
+    next(error);
+  }
+};

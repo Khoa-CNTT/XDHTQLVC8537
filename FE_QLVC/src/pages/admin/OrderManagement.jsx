@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './OrderManagement.css';
 import { orderService } from '../../services/orderService';
-import socketService from '../../services/socketService';
+import socketService from '../../services/socketService'; // Đảm bảo đã có service này
 import { toast } from 'react-toastify';
 
 export const OrderManagement = () => {
@@ -15,6 +15,7 @@ export const OrderManagement = () => {
   const [statusFilter, setStatusFilter] = useState('all'); // all, received, picking, picked, failedPick, delivering, delivering, delivered, failedDelivery, overdue, cancelled, returned
   const [payerFilter, setPayerFilter] = useState('all'); // all, sender, receiver
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all'); // all, noCOD, waitingCOD, receivedCOD  // Date range functionality has been removed
+
   // Fetch orders function
   const fetchOrders = async () => {
     try {
@@ -58,7 +59,7 @@ export const OrderManagement = () => {
   };  // Call fetchOrders when component mounts or dependencies change
   useEffect(() => {
     fetchOrders();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, rowsPerPage, orderFilter, statusFilter, payerFilter, paymentStatusFilter]);
     // Lắng nghe sự kiện socket.io để cập nhật đơn hàng theo thời gian thực
   useEffect(() => {
@@ -99,6 +100,46 @@ export const OrderManagement = () => {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [/* fetchOrders được gọi trong callback, nhưng thêm vào dependency sẽ gây re-render liên tục */]);
+
+  // Lắng nghe sự kiện socket.io để cập nhật đơn hàng theo thời gian thực
+  useEffect(() => {
+    // Lắng nghe khi có đơn hàng mới
+    const unsubNewOrder = socketService.onNewOrder((data) => {
+      console.log('Admin nhận được sự kiện đơn hàng mới:', data);
+      toast.info(`Đơn hàng mới ${data.MaVanDon} vừa được tạo!`);
+      fetchOrders();
+    });
+    
+    // Lắng nghe khi có đơn hàng được tiếp nhận
+    const unsubOrderAccepted = socketService.onOrderAccepted((data) => {
+      console.log('Admin nhận được sự kiện đơn hàng được tiếp nhận:', data);
+      toast.info(`Đơn hàng ${data.MaVanDon} đã được nhân viên tiếp nhận!`);
+      fetchOrders();
+    });
+    
+    // Lắng nghe khi trạng thái đơn hàng thay đổi
+    const unsubOrderStatusChanged = socketService.onOrderStatusChanged((data) => {
+      console.log('Admin nhận được sự kiện trạng thái đơn hàng thay đổi:', data);
+      toast.info(`Đơn hàng ${data.MaVanDon} đã được cập nhật: ${data.newStatus}`);
+      fetchOrders();
+    });
+
+    // Lắng nghe khi đơn hàng bị hủy
+    const unsubOrderCanceled = socketService.onOrderCanceled((data) => {
+      console.log('Admin nhận được sự kiện đơn hàng bị hủy:', data);
+      toast.warning(`Đơn hàng ${data.MaVanDon} đã bị hủy. Lý do: ${data.reason || 'Không có lý do'}`);
+      fetchOrders();
+    });
+    
+    // Hủy đăng ký lắng nghe khi component unmount
+    return () => {
+      unsubNewOrder();
+      unsubOrderAccepted();
+      unsubOrderStatusChanged();
+      unsubOrderCanceled();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle approve action
   const handleApprove = async (orderId) => {
