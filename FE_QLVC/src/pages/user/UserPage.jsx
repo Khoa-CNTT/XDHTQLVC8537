@@ -10,8 +10,7 @@ import { toast } from 'react-toastify';
 
 import './UserPage.css';
 
-const UserPage = () => {
-    const navigate = useNavigate();
+const UserPage = () => {    const navigate = useNavigate();
     const { auth, logout } = useAuth();
     const [activeItem, setActiveItem] = useState('main');
     const [user, setUser] = useState(null);
@@ -69,6 +68,7 @@ const UserPage = () => {
             
             // Fetch additional data only after user data is confirmed
             let ordersPromise;
+            // let pendingOrdersPromise = Promise.resolve([]);
 
             if (userRole === 'user' && combinedUserData.ID_KH) {
                 ordersPromise = orderService.getOrdersByCustomer(combinedUserData.ID_KH);
@@ -174,7 +174,6 @@ const UserPage = () => {
         const { name, value } = e.target;
         setOrder((prev) => ({ ...prev, [name]: value }));
     };
-
     const handleCharacteristicsChange = (e) => {
         const { value, checked } = e.target;
         setOrder(prev => {
