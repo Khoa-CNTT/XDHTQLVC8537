@@ -639,19 +639,30 @@ export const orderService = {
       throw error;
     }
   },
+<<<<<<< HEAD
   // Accept a pending order as staff
   acceptPendingOrder: async (pendingOrderId, staffId) => {
     try {
       // Ghi log để debug
       console.log(`Trying to accept pending order ${pendingOrderId} with staffId ${staffId}`);
       
+=======
+
+  // Accept a pending order as staff
+  acceptPendingOrder: async (pendingOrderId, staffId) => {
+    try {
+>>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
       const response = await axios.put(`${API_BASE_URL}/pending-orders/${pendingOrderId}/accept`, 
         { staffId },
         {
           headers: {
             Authorization: `Bearer ${getToken()}`
           },
+<<<<<<< HEAD
           timeout: 15000, // Tăng timeout lên để xử lý các thao tác DB phức tạp
+=======
+          timeout: 10000,
+>>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
         }
       );
 
@@ -661,15 +672,21 @@ export const orderService = {
         .forEach(key => responseCache.delete(key));
 
       if (response.data && response.data.success) {
+<<<<<<< HEAD
         console.log('Accept pending order successful:', response.data);
+=======
+>>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
         return response.data.data;
       }
       
       throw new Error(response.data?.error || 'Failed to accept order');
     } catch (error) {
       console.error('Error accepting pending order:', error);
+<<<<<<< HEAD
       // Log thêm chi tiết lỗi
       console.error('Error details:', error.response?.data || error.message);
+=======
+>>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
       
       if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
         throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng hoặc máy chủ đã khởi động chưa.');
