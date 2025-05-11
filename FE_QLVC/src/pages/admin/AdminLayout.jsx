@@ -24,6 +24,15 @@ import { UserManagement } from "./UserManagement";
 import { OrderManagement } from "./OrderManagement";
 import { useAuth } from "../../hooks/useAuth";
 import RevenueReport from "./reports/RevenueReport";
+import StaffReportManagement from "./StaffReportManagement";
+import FinancialReportManagement from "./FinancialReportManagement";
+import NotificationManagement from "./reports/NotificationManagement";
+import { toast } from 'react-toastify';
+import socketService from '../../services/socketService';
+import { notificationService } from '../../services/notificationService';
+import XacNhanDonHang from "./xacnhan";
+import './AdminNotification.css';
+import './AdminSidebar.css';
 
 // Menu structure (có thể tách ra file riêng)
 const MENU_STRUCTURE = [
@@ -36,14 +45,16 @@ const MENU_STRUCTURE = [
       { id: "pending-orders", name: "Đơn hàng cần xử lý", icon: ArchiveBoxIcon, path: "/admin/pending" },
       { id: "users", name: "Quản lý tài khoản", icon: UsersIcon, path: "/admin/users" },
     ],
-  },  {
+  },  
+  {
     id: "reports",
     name: "Báo cáo thống kê",
     icon: DocumentChartBarIcon,
     subItems: [
       { id: "revenue-report", name: "Thống kê tiền hàng", icon: CurrencyDollarIcon, path: "/admin/reports/revenue" },
-      { id: "operations-report", name: "Báo cáo vận hành", icon: WrenchScrewdriverIcon, path: "/admin/reports/operations" },
-      { id: "hr-report", name: "Báo cáo nhân sự", icon: UserGroupIcon, path: "/admin/reports/hr" },
+      { id: "financial-report", name: "Báo cáo tài chính", icon: WrenchScrewdriverIcon, path: "/admin/reports/financial" },
+      { id: "staff-report", name: "Báo cáo nhân viên", icon: UserGroupIcon, path: "/admin/reports/staff" },
+      { id: "notification-management", name: "Quản lý thông báo", icon: BellIcon, path: "/admin/reports/notifications" },
     ],
   },
   {
@@ -53,11 +64,57 @@ const MENU_STRUCTURE = [
     subItems: [
       { id: "profile", name: "Quản lý thông tin cá nhân", icon: UserCircleIcon, path: "/admin/settings/profile" },
       { id: "change-password", name: "Đổi mật khẩu", icon: KeyIcon, path: "/admin/settings/password" },
-    ],  },
+    ],  
+  },
 ];
 
-// Import component thống kê tiền hàng
+// PendingOrders component (đặt TRƯỚC CONTENT_MAP)
+const PendingOrders = () => {
+  const [pendingOrders, setPendingOrders] = useState([]);
 
+  useEffect(() => {
+    const unsubNewOrder = socketService.onNewOrder((order) => {
+      setPendingOrders(prev => [...prev, order]);
+      toast.info(`Đơn hàng mới ${order.maVanDon || order.MaVanDon || 'N/A'} vừa được tạo!`);
+    });
+    return () => {
+      unsubNewOrder && unsubNewOrder();
+    };
+  }, []);
+
+  const handleConfirmPendingOrder = async (order) => {
+    if (window.confirm(`Xác nhận tiếp nhận đơn hàng mới: ${order.maVanDon || order.MaVanDon || 'N/A'}?`)) {
+      // TODO: Gọi API lưu vào database tạm nếu cần
+      setPendingOrders(prev => prev.filter(o => o !== order));
+      toast.success('Đã xác nhận đơn hàng!');
+    }
+  };
+
+  return (
+    <div className="pending-orders-alert">
+      <h3>Đơn hàng mới chờ xác nhận:</h3>
+      {pendingOrders.length === 0 ? (
+        <div>Không có đơn hàng chờ xác nhận.</div>
+      ) : (
+        <ul>
+          {pendingOrders.map((order, idx) => (
+            <li key={order.maVanDon || order.MaVanDon || idx} className="pending-order-item">
+              <span>
+                Mã vận đơn: <b>{order.maVanDon || order.MaVanDon || 'N/A'}</b> - Người nhận: <b>{order.receiverName || order.TenNguoiNhan || 'N/A'}</b>
+              </span>
+              <button
+                className="confirm-pending-btn"
+                onClick={() => handleConfirmPendingOrder(order)}
+              >
+                Xác nhận
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 // Component mapping để render nội dung chính
 const CONTENT_MAP = {
@@ -90,7 +147,9 @@ export const AdminLayout = () => {
   });
   const navigate = useNavigate();
   const location = useLocation();
-  const { auth, logout } = useAuth(); // Get logout function from auth context  // Fetch notifications
+  const { auth, logout } = useAuth(); // Get logout function from auth context
+  
+  // Fetch notifications
   useEffect(() => {
     const fetchNotifications = async () => {
       if (auth && auth.user && auth.user.id) {
@@ -136,6 +195,7 @@ export const AdminLayout = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+  
   // Save collapsed state to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('admin-sidebar-collapsed', JSON.stringify(isCollapsed));
@@ -185,13 +245,15 @@ export const AdminLayout = () => {
     navigate(item.path);
     setIsMobileMenuOpen(false);
   };
+  
   const handleLogout = () => {
     // Call the logout function from auth context
     logout();
     // Navigate to login page
     navigate("/login", { replace: true });
   };
-    const handleMarkAllAsRead = async () => {
+  
+  const handleMarkAllAsRead = async () => {
     if (auth && auth.user && auth.user.id) {
       try {
         await notificationService.markUserNotificationsAsRead(auth.user.id);
@@ -232,6 +294,7 @@ export const AdminLayout = () => {
       navigate(`/admin/orders?id=${notification.ID_DH}`);
     }
   };
+  
   // Component tái sử dụng cho sub-item
   const SidebarSubItem = ({ item }) => (
     <button
@@ -271,7 +334,8 @@ export const AdminLayout = () => {
 
   return (
     <div className="admin-layout-container">
-      {/* Header */}      <header className="admin-header-fixed">
+      {/* Header */}
+      <header className="admin-header-fixed">
         <div className="admin-header-content">
           <div className="admin-header-left">
             <button
@@ -282,7 +346,8 @@ export const AdminLayout = () => {
               {isSidebarHidden ? <Bars3Icon className="icon-base" /> : <XMarkIcon className="icon-base" />}
             </button>
           </div>
-          <div className="admin-header-right">            <div className="search-container">
+          <div className="admin-header-right">
+            <div className="search-container">
               <input
                 type="text"
                 placeholder="Tra cứu đơn hàng"
@@ -299,7 +364,8 @@ export const AdminLayout = () => {
                 {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
               </button>
               {isNotificationOpen && (
-                <div className="notification-dropdown">                  <div className="notification-dropdown-header">
+                <div className="notification-dropdown">
+                  <div className="notification-dropdown-header">
                     <span>Thông báo của bạn</span>
                     <div className="notification-header-actions">
                       {unreadCount > 0 && (
@@ -325,7 +391,8 @@ export const AdminLayout = () => {
                   <div className="notification-dropdown-list">
                     {notifications.length === 0 ? (
                       <div className="no-notifications">Không có thông báo</div>
-                    ) : (                      notifications.slice(0, 5).map((noti, idx) => (
+                    ) : (
+                      notifications.slice(0, 5).map((noti, idx) => (
                         <div 
                           key={noti.ID_TB || idx} 
                           className={`notification-item ${noti.DaDoc === 0 ? 'unread' : ''}`}
@@ -364,7 +431,9 @@ export const AdminLayout = () => {
       <div
         className={`mobile-overlay ${isMobileMenuOpen ? "visible" : ""}`}
         onClick={() => setIsMobileMenuOpen(false)}
-      />      {/* Floating toggle button for hidden sidebar */}
+      />
+      
+      {/* Floating toggle button for hidden sidebar */}
       <button
         className="floating-sidebar-toggle"
         onClick={() => setIsSidebarHidden(false)}
@@ -400,7 +469,9 @@ export const AdminLayout = () => {
             <span>Đăng xuất</span>
           </button>
         </nav>
-      </aside>      {/* Main Content */}
+      </aside>
+      
+      {/* Main Content */}
       <main className={`admin-main-content ${isCollapsed ? "sidebar-collapsed" : ""} ${isSidebarHidden ? "sidebar-hidden" : ""}`}>
         <div className="main-content-inner">
           <ActiveContent />
