@@ -1,6 +1,8 @@
 // notifyLateOrders.js
-const { connection } = require('./src/config/database');
-const { generateLateDeliveryMessageHF } = require('./src/utils/huggingFaceNotify');
+const { connection } = require("./src/config/database");
+const {
+  generateLateDeliveryMessageHF,
+} = require("./src/utils/huggingFaceNotify");
 
 async function notifyLateOrders() {
   const conn = await connection.getConnection();
@@ -20,7 +22,7 @@ async function notifyLateOrders() {
     `);
     console.log(`Số đơn hàng cần thông báo trễ: ${orders.length}`);
     if (orders.length === 0) {
-      console.log('Không có đơn hàng nào cần thông báo trễ.');
+      console.log("Không có đơn hàng nào cần thông báo trễ.");
     }
     for (const order of orders) {
       try {
@@ -30,18 +32,18 @@ async function notifyLateOrders() {
           message = `Đơn hàng ${order.MaVanDon} đã bị giao trễ.`;
         }
         // Log nội dung message AI trả về
-        console.log('Nội dung AI gửi:', message);
+        console.log("Nội dung AI gửi:", message);
         await conn.query(
-          'INSERT INTO ThongBao (ID_DH, NoiDung, NgayTB) VALUES (?, ?, NOW())',
+          "INSERT INTO ThongBao (ID_DH, NoiDung, NgayTB) VALUES (?, ?, NOW())",
           [order.ID_DH, message]
         );
         // Gửi socket nếu muốn (nếu có global.io)
         if (global.io) {
-          global.io.emit('notification:new', { orderId: order.ID_DH, message });
+          global.io.emit("notification:new", { orderId: order.ID_DH, message });
         }
         console.log(`Đã gửi thông báo trễ cho đơn hàng ${order.MaVanDon}`);
       } catch (err) {
-        console.error('OpenAI hoặc DB error:', err);
+        console.error("OpenAI hoặc DB error:", err);
       }
     }
 
@@ -64,19 +66,21 @@ async function notifyLateOrders() {
       try {
         let message = `Đơn hàng ${order.MaVanDon} sắp đến hạn giao.`;
         await conn.query(
-          'INSERT INTO ThongBao (ID_DH, NoiDung, NgayTB) VALUES (?, ?, NOW())',
+          "INSERT INTO ThongBao (ID_DH, NoiDung, NgayTB) VALUES (?, ?, NOW())",
           [order.ID_DH, message]
         );
         if (global.io) {
-          global.io.emit('notification:new', { orderId: order.ID_DH, message });
+          global.io.emit("notification:new", { orderId: order.ID_DH, message });
         }
-        console.log(`Đã gửi thông báo sắp đến hạn giao cho đơn hàng ${order.MaVanDon}`);
+        console.log(
+          `Đã gửi thông báo sắp đến hạn giao cho đơn hàng ${order.MaVanDon}`
+        );
       } catch (err) {
-        console.error('DB error (upcoming):', err);
+        console.error("DB error (upcoming):", err);
       }
     }
   } catch (err) {
-    console.error('DB error:', err);
+    console.error("DB error:", err);
   } finally {
     conn.release();
   }

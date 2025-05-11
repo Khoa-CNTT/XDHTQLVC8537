@@ -12,19 +12,6 @@ import './UserPage.css';
 
 const UserPage = () => {    const navigate = useNavigate();
     const { auth, logout } = useAuth();
-<<<<<<< HEAD
-    const [activeItem, setActiveItem] = useState('main');
-    const [user, setUser] = useState(null);
-    const [userOrders, setUserOrders] = useState([]); // Customer orders
-    const [error, setError] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [showPaymentForm, setShowPaymentForm] = useState(false);
-    const [createdOrder, setCreatedOrder] = useState(null);
-    const [imageUploading, setImageUploading] = useState(false);
-    const [imageError, setImageError] = useState(null);
-    
-    const [order, setOrder] = useState({
-=======
     const [activeItem, setActiveItem] = useState('main');    const [user, setUser] = useState(null); // Holds detailed user info (KH or NV) + base info
     const [employees, setEmployees] = useState([]);
     const [orders, setOrders] = useState([]); // Staff orders
@@ -35,7 +22,6 @@ const UserPage = () => {    const navigate = useNavigate();
     const [showPaymentForm, setShowPaymentForm] = useState(false);    const [createdOrder, setCreatedOrder] = useState(null);
     const [imageUploading, setImageUploading] = useState(false);
     const [imageError, setImageError] = useState(null);    const [order, setOrder] = useState({
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
         ID_NV: '',
         receiverName: '',
         receiverAddress: '',
@@ -47,18 +33,9 @@ const UserPage = () => {    const navigate = useNavigate();
         codAmount: 0,
         notes: '',
         productImage: null,
-<<<<<<< HEAD
-        quantity: 1
-    });
-    const [productImagePreview, setProductImagePreview] = useState(null);
-
-    // Ngăn submit lặp khi đang gửi đơn hàng (cả cash và online)
-    const [isSubmitting, setIsSubmitting] = useState(false);
-=======
         quantity: 1 // Thêm trường số lượng với giá trị mặc định là 1
     });
     const [productImagePreview, setProductImagePreview] = useState(null);
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
 
     // Memoize fetchUserData to prevent recreation on every render
     const fetchUserData = useCallback(async (userId, userRole) => {
@@ -87,20 +64,6 @@ const UserPage = () => {    const navigate = useNavigate();
             
             // Fetch additional data only after user data is confirmed
             let ordersPromise;
-<<<<<<< HEAD
-            // let pendingOrdersPromise = Promise.resolve([]);
-
-            if (userRole === 'user' && combinedUserData.ID_KH) {
-                ordersPromise = orderService.getOrdersByCustomer(combinedUserData.ID_KH);
-            } else {
-                ordersPromise = Promise.resolve([]);
-            }
-            
-            // Wait for orders data
-            const ordersData = await ordersPromise;
-            
-            if (userRole === 'user') {
-=======
             let pendingOrdersPromise = Promise.resolve([]);
 
             if (userRole === 'staff' && combinedUserData.ID_NV) {
@@ -122,7 +85,6 @@ const UserPage = () => {    const navigate = useNavigate();
                 setOrders(ordersData || []);
                 setPendingOrders(pendingOrdersData || []);
             } else if (userRole === 'user') {
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
                 setUserOrders(ordersData || []);
             }
 
@@ -217,10 +179,7 @@ const UserPage = () => {    const navigate = useNavigate();
         const { name, value } = e.target;
         setOrder((prev) => ({ ...prev, [name]: value }));
     };
-<<<<<<< HEAD
-=======
       // Hàm xử lý cho các checkbox tính chất hàng hóa
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
     const handleCharacteristicsChange = (e) => {
         const { value, checked } = e.target;
         setOrder(prev => {
@@ -240,11 +199,7 @@ const UserPage = () => {    const navigate = useNavigate();
         });
     };
     
-<<<<<<< HEAD
-    // Rest of handler functions
-=======
     // Hàm xử lý tải lên ảnh sản phẩm
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
     const handleProductImageUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -276,21 +231,7 @@ const UserPage = () => {    const navigate = useNavigate();
         if (error && error.includes('ảnh')) {
             setError(null);
         }
-<<<<<<< HEAD
-    };
-
-    const handleRemoveProductImage = () => {
-        setProductImagePreview(null);
-        setOrder(prev => ({
-            ...prev,
-            productImage: null
-        }));
-    };
-
-    // Hàm tính phí vận chuyển
-=======
     };// Hàm tính phí vận chuyển dựa trên trọng lượng
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
     const calculateShippingFee = () => {
         const weight = parseFloat(order.weight) || 0;
         const baseFee = 30000;
@@ -348,24 +289,6 @@ const UserPage = () => {    const navigate = useNavigate();
         }
         setError(null);
         setLoading(true);
-<<<<<<< HEAD
-        try {
-            // Xác định ID tính chất hàng hóa dựa trên tính chất được chọn
-            let ID_TCHH = 0;
-            if (order.productCharacteristics && order.productCharacteristics.length > 0) {
-                ID_TCHH = Math.max(...order.productCharacteristics.map(id => parseInt(id)));
-            }
-            if (ID_TCHH === 0) ID_TCHH = 1;
-            const productData = {
-                tenHH: order.productName,
-                trongLuong: parseFloat(order.weight) || 0.1,
-                ID_LHH: parseInt(order.productType) || 1,
-                ID_TCHH: ID_TCHH,
-                donGia: 0,
-                soLuong: parseInt(order.quantity) || 1,
-                image: 'default.jpg'
-            };
-=======
         
         try {
             // Xác định ID tính chất hàng hóa dựa trên tính chất được chọn
@@ -392,7 +315,6 @@ const UserPage = () => {    const navigate = useNavigate();
             };
 
             // Chuẩn hóa dữ liệu cho phù hợp với API createOrder
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
             const orderData = {
                 khachHangId: user.ID_KH,
                 hangHoa: productData,
@@ -400,16 +322,6 @@ const UserPage = () => {    const navigate = useNavigate();
                     ten: order.receiverName,
                     diaChi: order.receiverAddress,
                     sdt: order.receiverPhone
-<<<<<<< HEAD
-                },
-                phiGiaoHang: calculateShippingFee(),
-                tienShip: calculateShippingFee(),
-                tienThuHo: parseInt(order.codAmount) || 0,
-                ghiChu: order.notes || '',
-                trangThaiDonHang: 'Đang chờ xử lý',
-                paymentMethod: options.paymentMethod || 'cash'
-            };
-=======
                 },                  phiGiaoHang: calculateShippingFee(),
                 tienShip: calculateShippingFee(), // Thay thế tienHang bằng tienShip
                 tienThuHo: parseInt(order.codAmount) || 0, 
@@ -418,7 +330,6 @@ const UserPage = () => {    const navigate = useNavigate();
             };
 
             // Thêm thông tin mô tả tính chất hàng hóa vào ghi chú để dễ đọc
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
             if (order.productCharacteristics && order.productCharacteristics.length > 0) {
                 const tinhChatNames = {
                     '1': 'Giá trị cao',
@@ -428,14 +339,6 @@ const UserPage = () => {    const navigate = useNavigate();
                     '5': 'Chất lỏng',
                     '6': 'Từ tính, Pin'
                 };
-<<<<<<< HEAD
-                const tinhChatDescriptions = order.productCharacteristics
-                    .map(id => tinhChatNames[id] || `Tính chất ${id}`)
-                    .join(', ');
-                orderData.ghiChu += ' | Tính chất: ' + tinhChatDescriptions;
-            }
-            // Gửi đơn hàng lên server
-=======
                 
                 const tinhChatDescriptions = order.productCharacteristics
                     .map(id => tinhChatNames[id] || `Tính chất ${id}`)
@@ -444,7 +347,6 @@ const UserPage = () => {    const navigate = useNavigate();
                 orderData.ghiChu += ' | Tính chất: ' + tinhChatDescriptions;
             }
 
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
             const response = await orderService.createOrder(orderData);
             // Reset form sau khi tạo đơn thành công
             setOrder({
@@ -459,11 +361,7 @@ const UserPage = () => {    const navigate = useNavigate();
                 codAmount: 0,
                 notes: '',
                 productImage: null,
-<<<<<<< HEAD
-                quantity: 1
-=======
                 quantity: 1 // Reset số lượng về 1
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
             });
             
             // Cập nhật danh sách đơn hàng
@@ -485,13 +383,6 @@ const UserPage = () => {    const navigate = useNavigate();
             console.error('Error creating order:', err);
         } finally {
             setLoading(false);
-<<<<<<< HEAD
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleImageUpload = async (e) => {
-=======
         }
     };    const handleAcceptOrder = async (idDH) => {
         if (!user || !user.ID_NV) {
@@ -574,7 +465,6 @@ const UserPage = () => {    const navigate = useNavigate();
             setLoading(false);
         }
     };const handleImageUpload = async (e) => {
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
         const file = e.target.files[0];
         if (!file) return;
         
@@ -697,39 +587,6 @@ const UserPage = () => {    const navigate = useNavigate();
                     {/* Order History View when selected in main content */}
                     {activeItem === 'orders' && (
                         <div className="order-form-container">
-<<<<<<< HEAD
-                            <h2 className="order-form-title">Lịch sử đơn hàng</h2>
-                            {/* Replace the duplicate table implementation with the UserHistory component */}
-                            <UserHistory userOrders={userOrders} />
-                        </div>
-                    )}
-
-                    {/* Main View */}
-                    {activeItem === 'main' && user && (
-                        <div className="order-form-container">
-                            <UserView 
-                                user={user}
-                                order={order}
-                                handleInputChange={handleInputChange}
-                                handleCharacteristicsChange={handleCharacteristicsChange}
-                                handleProductImageUpload={handleProductImageUpload}
-                                handleRemoveProductImage={handleRemoveProductImage}
-                                productImagePreview={productImagePreview}
-                                calculateShippingFee={calculateShippingFee}
-                                handleOrderSubmit={handleOrderSubmit}
-                                loading={loading}
-                                error={error}
-                                showPaymentForm={showPaymentForm}
-                                createdOrder={createdOrder}
-                                handleClosePaymentForm={handleClosePaymentForm}
-                                handlePayment={handlePayment}
-                                userOrders={userOrders}
-                            />
-                        </div>
-                    )}
-
-                    {/* Profile Section */}
-=======
                             {/* Staff View */}                            {user.Role === 'staff' && (
                                 <>                                    <h2 className="order-form-title">Đơn hàng tạm đang chờ xác nhận</h2>
                                     <table className="order-table">
@@ -1365,7 +1222,6 @@ const UserPage = () => {    const navigate = useNavigate();
                             )}
                         </div>
                     )}                    {/* Profile Section with Image Upload */}
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
                     {activeItem === 'profile' && user && (
                         <div className="order-form-container">
                             <h2 className="order-form-title">Thông tin cá nhân</h2>
@@ -1405,11 +1261,7 @@ const UserPage = () => {    const navigate = useNavigate();
                                     <p><strong>Email:</strong> {user.Email}</p>
                                     <p><strong>Điện thoại:</strong> {user.SDT}</p>
                                     <p><strong>Địa chỉ:</strong> {user.DiaChi}</p>
-<<<<<<< HEAD
-                                    <p><strong>Vai trò:</strong> Khách hàng</p>
-=======
                                     <p><strong>Vai trò:</strong> {user.Role === 'staff' ? 'Nhân viên' : 'Khách hàng'}</p>
->>>>>>> cb9dd3b832d66d3d6f6db8411b9610ef9c97b0f6
                                 </div>
                             </div>
                         </div>
