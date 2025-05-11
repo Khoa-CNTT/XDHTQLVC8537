@@ -4,6 +4,14 @@
   min-height: 100vh;
 }
 
+.profile-update-section {
+  margin-top: 30px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+}
+
 /* Sidebar styling */
 .staff-sidebar {
   width: 280px;
@@ -166,12 +174,16 @@
 
 /* Status badge styles */
 .status-badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 20px;
   font-size: 12px;
   font-weight: 500;
   text-align: center;
+  min-width: 100px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .status-đã-tiếp-nhận {
@@ -234,28 +246,57 @@
   color: white;
 }
 
+/* Order Form Container */
+.order-form-container {
+  width: 100%;
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.order-form-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #eaeaea;
+}
+
 /* Orders table styling */
 .orders-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  min-width: 800px; /* Ensure minimum width for responsive tables */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .orders-table th,
 .orders-table td {
-  padding: 12px 16px;
+  padding: 14px 16px;
   text-align: left;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #edf2f7;
+  font-size: 14px;
 }
 
 .orders-table th {
-  background-color: #f1f5f9;
+  background-color: #f7fafc;
   font-weight: 600;
-  color: #475569;
+  color: #4a5568;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+.orders-table tr:last-child td {
+  border-bottom: none;
 }
 
 .order-row:hover {
-  background-color: #f8fafc;
+  background-color: #f7fafc;
 }
 
 .order-code {
@@ -263,118 +304,80 @@
   color: #3b82f6;
 }
 
-/* No orders message */
-.no-orders-message {
-  text-align: center;
-  padding: 24px;
-  color: #64748b;
-  font-style: italic;
-}
-
-/* Profile section */
-.profile-section {
-  padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-}
-
-.profile-details p {
-  margin-bottom: 10px;
-  line-height: 1.6;
-}
-
-/* Message styles */
-.message {
-  padding: 12px 16px;
-  margin-bottom: 20px;
-  border-radius: 4px;
-}
-
-.error-message {
-  background-color: #ffebee;
-  color: #d32f2f;
-  border-left: 4px solid #d32f2f;
-}
-
-/* Loading state */
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  font-size: 1.25rem;
-  color: #4a90e2;
-}
-
-/* Order Actions */
+/* Updated Order Actions */
 .order-actions {
   display: flex;
   gap: 10px;
   align-items: center;
-}
-
-.action-btn {
-  position: relative;
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s ease;
-  overflow: hidden;
-}
-
-.action-btn-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  flex-direction: row;
+  flex-wrap: nowrap;
   width: 100%;
-  height: 100%;
-  font-size: 16px;
-  transition: transform 0.2s ease;
+  min-width: 230px;
 }
 
-.action-tooltip {
-  position: absolute;
-  bottom: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
+.order-actions .status-select {
+  flex: 1;
+  min-width: 140px;
+}
+
+.order-actions .details-btn {
   white-space: nowrap;
-  opacity: 0;
-  transition: all 0.2s ease;
-  pointer-events: none;
+  flex-shrink: 0;
 }
 
-.action-btn:hover .action-tooltip {
-  opacity: 1;
-  bottom: -25px;
-}
-
-.action-btn:hover .action-btn-icon {
-  transform: translateY(-2px);
-}
-
+/* Modified Details Button - now showing text */
 .details-btn {
   background-color: #ebf8ff;
   color: #3182ce;
   box-shadow: 0 2px 4px rgba(49, 130, 206, 0.1);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.details-btn .action-btn-icon {
+  margin-right: 5px;
+  font-size: 14px;
+}
+
+.details-btn .action-tooltip {
+  display: inline-block;
 }
 
 .details-btn:hover {
   background-color: #bee3f8;
-  box-shadow: 0 4px 6px rgba(49, 130, 206, 0.2);
+  box-shadow: 0 3px 5px rgba(49, 130, 206, 0.15);
+  transform: translateY(-1px);
 }
 
-.details-icon {
-  color: #3182ce;
+/* Status select styling */
+.status-select {
+  min-width: 140px;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background-color: #f8fafc;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.status-select:focus {
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
+}
+
+.status-select:hover:not(:disabled) {
+  border-color: #cbd5e0;
+  background-color: #edf2f7;
 }
 
 /* Order Modal */
@@ -780,6 +783,53 @@
   }
 }
 
+/* Responsive table styling */
+@media screen and (max-width: 1024px) {
+  .orders-table th,
+  .orders-table td {
+    padding: 12px;
+    font-size: 13px;
+  }
+  
+  .order-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .status-select {
+    width: 100%;
+  }
+  
+  .orders-table th:last-child,
+  .orders-table td:last-child {
+    min-width: 120px; /* Ensure action buttons have enough space */
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .orders-table {
+    min-width: 900px; /* Force horizontal scrolling on small screens */
+  }
+  
+  .action-btn {
+    width: 34px;
+    height: 34px;
+  }
+  
+  .staff-content {
+    padding: 15px 20px;
+  }
+  
+  .order-form-container {
+    padding: 15px;
+  }
+  
+  .order-form-title {
+    font-size: 1.3rem;
+  }
+}
+
 /* Print Styles */
 @media print {
   body * {
@@ -800,4 +850,15 @@
   .modal-close-button, .modal-accept-button, .modal-status-container, .modal-print-button, .modal-map-button, .modal-close-btn {
     display: none !important;
   }
+}
+
+.staff-orders-list,
+.pending-orders-list, 
+.delivered-orders-list {
+  width: 100%;
+  overflow-x: auto;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-top: 15px;
 }

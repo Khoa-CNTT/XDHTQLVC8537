@@ -3,11 +3,19 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import { AuthProvider } from './contexts/AuthContext';
 import './assets/index.css';
+import AntdConfigProvider from './utils/antdConfigProvider';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+// Initialize Ant Design config to suppress warnings
+import './utils/antdConfigProvider';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+
+root.render(
   <React.StrictMode>
     <AuthProvider>
-      <App />
+      <AntdConfigProvider>
+        <App />
+      </AntdConfigProvider>
     </AuthProvider>
   </React.StrictMode>,
 )

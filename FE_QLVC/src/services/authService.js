@@ -161,12 +161,24 @@ export const authService = {
             console.error('Error creating user:', error);
             throw error.response?.data?.error || 'Failed to create user';
         }
-    },
-
-    // Update user
+    },    // Update user
     updateUser: async (id, userData) => {
         try {
-            const response = await axios.put(`${API_BASE_URL}/users/${id}`, userData, {
+            // Create a copy of userData to avoid modifying the original
+            const dataToSend = { ...userData };
+            
+            // Map frontend Password field to backend MatKhau field
+            if (dataToSend.Password) {
+                // Only include MatKhau if Password is not empty
+                if (dataToSend.Password.trim() !== '') {
+                    dataToSend.MatKhau = dataToSend.Password; // Set MatKhau field for backend
+                }
+                delete dataToSend.Password; // Remove frontend Password field
+            }
+            
+            console.log('Updating user with data:', dataToSend);
+            
+            const response = await axios.put(`${API_BASE_URL}/users/${id}`, dataToSend, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem('token')}`
                 }
@@ -199,10 +211,73 @@ export const authService = {
             console.error('Error deleting user:', error);
             throw error.response?.data?.error || 'Failed to delete user';
         }
-    },
-
-    // Clear cache on logout
+    },    // Clear cache on logout
     clearCache: () => {
         responseCache.clear();
+    },    // Update customer profile
+    updateCustomerProfile: async (customerId, customerData) => {
+        try {
+            const response = await axios.put(`${API_BASE_URL}/users/khachhang/${customerId}`, customerData, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (response.data && response.data.success) {
+                // Clear cache for this user
+                if (customerData.ID_TK) {
+                    responseCache.delete(`kh-${customerData.ID_TK}`);
+                }
+                return response.data.data || response.data;
+            }
+            throw new Error(response.data?.error || 'Không thể cập nhật thông tin');
+        } catch (error) {
+            console.error('Error updating customer profile:', error);
+            throw error.response?.data?.error || 'Không thể cập nhật thông tin khách hàng';
+        }
+    },
+    
+    // Update staff profile
+    updateStaffProfile: async (staffId, staffData) => {
+        try {
+            const response = await axios.put(`${API_BASE_URL}/users/nhanvien/${staffId}`, staffData, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (response.data && response.data.success) {
+                // Clear cache for this user
+                if (staffData.ID_TK) {
+                    responseCache.delete(`nv-${staffData.ID_TK}`);
+                }
+                return response.data.data || response.data;
+            }
+            throw new Error(response.data?.error || 'Không thể cập nhật thông tin');
+        } catch (error) {
+            console.error('Error updating staff profile:', error);
+            throw error.response?.data?.error || 'Không thể cập nhật thông tin nhân viên';
+        }
+    },// Update user password
+    updatePassword: async (userId, passwordData) => {
+        try {
+            const response = await axios.put(`${API_BASE_URL}/users/${userId}/password`, passwordData, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (response.data && response.data.success) {
+                return response.data.data || response.data;
+            }
+            throw new Error(response.data?.error || 'Không thể cập nhật mật khẩu');
+        } catch (error) {
+            console.error('Error updating password:', error);
+            if (error.response?.status === 401) {
+                throw new Error('Mật khẩu hiện tại không chính xác');
+            } else {
+                throw error.response?.data?.error || 'Không thể cập nhật mật khẩu';
+            }
+        }
     }
 };

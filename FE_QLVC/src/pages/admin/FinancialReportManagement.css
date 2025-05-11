@@ -1,0 +1,42 @@
+.financial-report-management .ant-card {
+  margin-bottom: 20px;
+}
+
+.financial-report-management .stats-cards {
+  margin-bottom: 24px;
+}
+
+.financial-report-management .stats-cards .ant-statistic-title {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.financial-report-management .stats-cards .ant-statistic-content {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.financial-report-management .report-detail {
+  padding: 10px 0;
+}
+
+.financial-report-management .report-detail p {
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.financial-report-management .stats-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.financial-report-management .ant-table-tbody > tr > td {
+  padding: 12px 16px;
+}
+
+.financial-report-management .filter-container {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: flex-end;
+}

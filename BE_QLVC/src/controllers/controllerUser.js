@@ -508,6 +508,196 @@ const getDashboardStats = async (req, res) => {
     }
 };
 
+// Cập nhật thông tin khách hàng
+const updateCustomer = async (req, res) => {
+    const { id } = req.params;
+    const { Ten_KH, DiaChi, SDT } = req.body;
+    
+    let conn;
+    try {
+        conn = await connection.getConnection();
+        await conn.beginTransaction();
+
+        // Cập nhật thông tin trong bảng KhachHang
+        if (Ten_KH || DiaChi) {
+            const updateKHFields = [];
+            const updateKHValues = [];
+
+            if (Ten_KH) {
+                updateKHFields.push('Ten_KH = ?');
+                updateKHValues.push(Ten_KH);
+            }
+            
+            if (DiaChi) {
+                updateKHFields.push('DiaChi = ?');
+                updateKHValues.push(DiaChi);
+            }
+
+            if (updateKHFields.length > 0) {
+                const sqlKH = `UPDATE KhachHang SET ${updateKHFields.join(', ')} WHERE ID_KH = ?`;
+                updateKHValues.push(id);
+                await conn.query(sqlKH, updateKHValues);
+            }
+        }
+
+        // Cập nhật SDT trong bảng TaiKhoan nếu có
+        if (SDT) {
+            // Lấy ID_TK từ KhachHang
+            const [khachHang] = await conn.query('SELECT ID_TK FROM KhachHang WHERE ID_KH = ?', [id]);
+            
+            if (khachHang.length === 0) {
+                return res.status(404).json({ success: false, error: 'Không tìm thấy khách hàng' });
+            }
+            
+            const idTK = khachHang[0].ID_TK;
+            
+            // Kiểm tra SDT đã tồn tại chưa
+            const [existingPhone] = await conn.query(
+                'SELECT * FROM TaiKhoan WHERE SDT = ? AND ID_TK != ?', 
+                [SDT, idTK]
+            );
+            
+            if (existingPhone.length > 0) {
+                return res.status(400).json({ success: false, error: 'Số điện thoại đã được sử dụng' });
+            }
+            
+            // Cập nhật SDT
+            await conn.query('UPDATE TaiKhoan SET SDT = ? WHERE ID_TK = ?', [SDT, idTK]);
+        }
+
+        await conn.commit();
+        res.json({ success: true, message: 'Cập nhật thông tin khách hàng thành công' });
+    } catch (err) {
+        if (conn) await conn.rollback();
+        console.error('Update customer error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
+// Cập nhật thông tin nhân viên
+const updateStaff = async (req, res) => {
+    const { id } = req.params;
+    const { HoTen, DiaChi, SDT } = req.body;
+    
+    let conn;
+    try {
+        conn = await connection.getConnection();
+        await conn.beginTransaction();
+
+        // Cập nhật thông tin trong bảng NhanVien
+        if (HoTen || DiaChi) {
+            const updateNVFields = [];
+            const updateNVValues = [];
+
+            if (HoTen) {
+                updateNVFields.push('HoTen = ?');
+                updateNVValues.push(HoTen);
+            }
+            
+            if (DiaChi) {
+                updateNVFields.push('DiaChi = ?');
+                updateNVValues.push(DiaChi);
+            }
+
+            if (updateNVFields.length > 0) {
+                const sqlNV = `UPDATE NhanVien SET ${updateNVFields.join(', ')} WHERE ID_NV = ?`;
+                updateNVValues.push(id);
+                await conn.query(sqlNV, updateNVValues);
+            }
+        }
+
+        // Cập nhật SDT trong bảng TaiKhoan nếu có
+        if (SDT) {
+            // Lấy ID_TK từ NhanVien
+            const [nhanVien] = await conn.query('SELECT ID_TK FROM NhanVien WHERE ID_NV = ?', [id]);
+            
+            if (nhanVien.length === 0) {
+                return res.status(404).json({ success: false, error: 'Không tìm thấy nhân viên' });
+            }
+            
+            const idTK = nhanVien[0].ID_TK;
+            
+            // Kiểm tra SDT đã tồn tại chưa
+            const [existingPhone] = await conn.query(
+                'SELECT * FROM TaiKhoan WHERE SDT = ? AND ID_TK != ?', 
+                [SDT, idTK]
+            );
+            
+            if (existingPhone.length > 0) {
+                return res.status(400).json({ success: false, error: 'Số điện thoại đã được sử dụng' });
+            }
+            
+            // Cập nhật SDT
+            await conn.query('UPDATE TaiKhoan SET SDT = ? WHERE ID_TK = ?', [SDT, idTK]);
+        }
+
+        await conn.commit();
+        res.json({ success: true, message: 'Cập nhật thông tin nhân viên thành công' });
+    } catch (err) {
+        if (conn) await conn.rollback();
+        console.error('Update staff error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
+// Cập nhật mật khẩu người dùng
+const updatePassword = async (req, res) => {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Mật khẩu hiện tại và mật khẩu mới là bắt buộc' 
+        });
+    }
+
+    let conn;
+    try {
+        conn = await connection.getConnection();
+        
+        // Lấy thông tin tài khoản
+        const [user] = await conn.query('SELECT * FROM TaiKhoan WHERE ID_TK = ?', [id]);
+        
+        if (user.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Không tìm thấy tài khoản' 
+            });
+        }
+        
+        // Kiểm tra mật khẩu hiện tại
+        const isMatch = await bcrypt.compare(currentPassword, user[0].MatKhau);
+        
+        if (!isMatch) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Mật khẩu hiện tại không chính xác' 
+            });
+        }
+        
+        // Hash mật khẩu mới
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        
+        // Cập nhật mật khẩu
+        await conn.query('UPDATE TaiKhoan SET MatKhau = ? WHERE ID_TK = ?', [hashedPassword, id]);
+        
+        res.json({ 
+            success: true, 
+            message: 'Đổi mật khẩu thành công' 
+        });
+    } catch (err) {
+        console.error('Update password error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
 // Export the new function
 module.exports = {
     getUser,
@@ -521,4 +711,7 @@ module.exports = {
     getNhanVienByTK,
     getAllNhanVien,
     getDashboardStats,
+    updateCustomer,
+    updateStaff,
+    updatePassword,
 };

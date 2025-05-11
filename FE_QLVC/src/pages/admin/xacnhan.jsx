@@ -5,6 +5,102 @@ import socketService from "../../services/socketService";
 const XacNhanDonHang = () => {  
   const [pendingOrders, setPendingOrders] = useState([]);
   
+  // Improve loading from localStorage with better error handling and logs
+  useEffect(() => {
+    try {
+      // Load saved orders from localStorage on component mount
+      const savedOrders = JSON.parse(localStorage.getItem('pendingConfirmations') || '[]');
+      if (savedOrders.length > 0) {
+        console.log("Đang tải đơn hàng đã lưu từ bộ nhớ cục bộ:", savedOrders.length);
+        setPendingOrders(prevOrders => {
+          // Combine with any existing orders, avoiding duplicates
+          const combinedOrders = [...prevOrders];
+          savedOrders.forEach(savedOrder => {
+            const savedOrderKey = savedOrder.maVanDon || savedOrder.MaVanDon || savedOrder.ID_DH || savedOrder.id;
+            const orderExists = combinedOrders.some(existingOrder => 
+              (existingOrder.maVanDon === savedOrderKey || 
+               existingOrder.MaVanDon === savedOrderKey ||
+               existingOrder.ID_DH === savedOrderKey || 
+               existingOrder.id === savedOrderKey)
+            );
+            if (!orderExists) {
+              combinedOrders.push(savedOrder);
+            }
+          });
+          return combinedOrders;
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải đơn hàng từ bộ nhớ cục bộ:", error);
+      // Attempt recovery if possible
+      try {
+        const backupKey = 'pendingConfirmations_backup';
+        const backupData = localStorage.getItem(backupKey);
+        if (backupData) {
+          const backupOrders = JSON.parse(backupData);
+          if (Array.isArray(backupOrders) && backupOrders.length > 0) {
+            console.log("Phục hồi từ bản sao lưu:", backupOrders.length);
+            setPendingOrders(backupOrders);
+            // Restore the backup to main storage
+            localStorage.setItem('pendingConfirmations', JSON.stringify(backupOrders));
+          }
+        }
+      } catch (backupError) {
+        console.error("Không thể khôi phục từ bản sao lưu:", backupError);
+      }
+    }
+  }, []);
+  
+  // Auto-save pendingOrders to localStorage whenever it changes
+  useEffect(() => {
+    // Only save if there are orders to save
+    if (pendingOrders.length > 0) {
+      try {
+        localStorage.setItem('pendingConfirmations', JSON.stringify(pendingOrders));
+        // Create a backup copy
+        localStorage.setItem('pendingConfirmations_backup', JSON.stringify(pendingOrders));
+        console.log("Đã lưu", pendingOrders.length, "đơn hàng vào bộ nhớ cục bộ");
+      } catch (error) {
+        console.error("Lỗi khi lưu đơn hàng vào bộ nhớ cục bộ:", error);
+      }
+    } else if (pendingOrders.length === 0) {
+      // Clear storage if no orders
+      localStorage.removeItem('pendingConfirmations');
+      // But keep the backup just in case
+    }
+  }, [pendingOrders]);
+  
+  // Setup periodic backup of pendingOrders (every 30 seconds)
+  useEffect(() => {
+    const backupInterval = setInterval(() => {
+      if (pendingOrders.length > 0) {
+        try {
+          const timestamp = new Date().toISOString();
+          localStorage.setItem(
+            `pendingConfirmations_backup_${timestamp}`, 
+            JSON.stringify(pendingOrders)
+          );
+          // Keep only the 3 most recent backups
+          const backupKeys = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('pendingConfirmations_backup_')) {
+              backupKeys.push(key);
+            }
+          }
+          backupKeys.sort().reverse();
+          backupKeys.slice(3).forEach(key => {
+            localStorage.removeItem(key);
+          });
+        } catch (error) {
+          console.error("Lỗi khi tạo bản sao lưu:", error);
+        }
+      }
+    }, 30000); // Every 30 seconds
+    
+    return () => clearInterval(backupInterval);
+  }, [pendingOrders]);
+  
   // Extract socket connection logic to a separate function for reuse
   const ensureSocketConnection = useCallback(async () => {
     try {
@@ -47,15 +143,26 @@ const XacNhanDonHang = () => {
       const unsubNewOrder = socketService.onNewOrder((order) => {
         console.log("Received new order data:", order);
         // Kiểm tra xem đơn hàng đã tồn tại trong danh sách chưa
-        const orderKey = order.maVanDon || order.MaVanDon;
+        const orderKey = order.maVanDon || order.MaVanDon || order.ID_DH || order.id;
         setPendingOrders((prev) => {
           // Kiểm tra xem đơn hàng có ID này đã có trong danh sách chưa
           const orderExists = prev.some(existingOrder => 
-            (existingOrder.maVanDon === orderKey || existingOrder.MaVanDon === orderKey)
+            (existingOrder.maVanDon === orderKey || 
+             existingOrder.MaVanDon === orderKey ||
+             existingOrder.ID_DH === orderKey ||
+             existingOrder.id === orderKey)
           );
           
           // Chỉ thêm đơn hàng nếu nó chưa tồn tại trong danh sách
-          return orderExists ? prev : [...prev, order];
+          if (orderExists) {
+            return prev;
+          } else {
+            // Make a deep copy to ensure state changes trigger useEffect for localStorage save
+            const newOrder = JSON.parse(JSON.stringify(order));
+            // Add timestamp for tracking
+            newOrder._receivedAt = new Date().toISOString();
+            return [...prev, newOrder];
+          }
         });
         toast.info(
           `Đơn hàng mới ${order.maVanDon || order.MaVanDon || "N/A"} vừa được tạo!`
@@ -67,15 +174,29 @@ const XacNhanDonHang = () => {
         if (notification && notification.type === 'new_order' && notification.data) {
           console.log("Received new order notification:", notification.data);
           // Kiểm tra xem đơn hàng đã tồn tại trong danh sách chưa
-          const orderKey = notification.data.maVanDon || notification.data.MaVanDon;
+          const orderKey = notification.data.maVanDon || 
+                          notification.data.MaVanDon || 
+                          notification.data.ID_DH || 
+                          notification.data.id;
           setPendingOrders((prev) => {
             // Kiểm tra xem đơn hàng có ID này đã có trong danh sách chưa
             const orderExists = prev.some(existingOrder => 
-              (existingOrder.maVanDon === orderKey || existingOrder.MaVanDon === orderKey)
+              (existingOrder.maVanDon === orderKey || 
+               existingOrder.MaVanDon === orderKey ||
+               existingOrder.ID_DH === orderKey ||
+               existingOrder.id === orderKey)
             );
             
             // Chỉ thêm đơn hàng nếu nó chưa tồn tại trong danh sách
-            return orderExists ? prev : [...prev, notification.data];
+            if (orderExists) {
+              return prev;
+            } else {
+              // Make a deep copy to ensure state changes trigger useEffect
+              const newOrderData = JSON.parse(JSON.stringify(notification.data));
+              // Add timestamp for tracking
+              newOrderData._receivedAt = new Date().toISOString();
+              return [...prev, newOrderData];
+            }
           });
         }
       });
@@ -92,7 +213,7 @@ const XacNhanDonHang = () => {
     };
   }, [ensureSocketConnection]);
   
-  // Add a function to save the order locally when connection fails
+  // Improved function to save the order locally when connection fails
   const saveOrderLocallyIfNeeded = (order) => {
     try {
       // Get existing saved orders
@@ -100,12 +221,21 @@ const XacNhanDonHang = () => {
       
       // Add this order if not already saved
       const orderExists = savedOrders.some(o => 
-        (o.maVanDon === order.maVanDon || o.MaVanDon === order.MaVanDon)
+        (o.maVanDon === order.maVanDon || 
+         o.MaVanDon === order.MaVanDon ||
+         o.ID_DH === order.ID_DH ||
+         o.id === order.id)
       );
       
       if (!orderExists) {
-        savedOrders.push(order);
+        // Deep clone to avoid reference issues
+        const orderToSave = JSON.parse(JSON.stringify(order));
+        // Add timestamp
+        orderToSave._savedAt = new Date().toISOString();
+        savedOrders.push(orderToSave);
         localStorage.setItem('pendingConfirmations', JSON.stringify(savedOrders));
+        // Also create a backup
+        localStorage.setItem('pendingConfirmations_backup', JSON.stringify(savedOrders));
         console.log("Đã lưu đơn hàng vào bộ nhớ cục bộ để xử lý sau");
         return true;
       }
@@ -127,12 +257,88 @@ const XacNhanDonHang = () => {
       try {
         // Ensure socket is connected
         const isConnected = await ensureSocketConnection();
+          // Lấy thông tin người dùng từ đơn hàng - cải thiện để tìm thông tin trong nhiều vị trí hơn
+        console.log("Thông tin đơn hàng đầy đủ trước khi xác nhận:", order);        // Trích xuất ID khách hàng từ nhiều vị trí có thể có - cải tiến để phát hiện tất cả khả năng
+        console.log("Đang trích xuất thông tin khách hàng từ đơn hàng:", order);
         
-        // Lấy thông tin người dùng từ đơn hàng
-        const userId = order.ID_KH || order.userId || order.id_kh || 
-                      (order.data && order.data.ID_KH) || 
-                      (order.data && order.data.userId);
+        // Tìm ID khách hàng từ nhiều vị trí có thể có
+        let userId = order.ID_KH || 
+                    order.userId || 
+                    order.id_kh || 
+                    order.khachHangId ||
+                    (order.data && order.data.ID_KH) || 
+                    (order.data && order.data.userId);
+                    
+        // Thử tìm trong thuộc tính khachHang nếu có
+        if (!userId && order.khachHang) {
+          userId = order.khachHang.ID_KH || order.khachHang.id;
+        }
         
+        // Nếu vẫn không tìm thấy, thử lấy từ orderData
+        if (!userId && order.orderData) {
+          userId = order.orderData.ID_KH || order.orderData.userId || order.orderData.id_kh;
+        }
+        
+        // Xử lý thông báo socket từ backend Node.js có cấu trúc khác
+        // Khi chạy server, backend gửi thông báo với cấu trúc khác
+        if (!userId && typeof order.id !== 'undefined') {
+          if (typeof order.khachHangId !== 'undefined') {
+            console.log("Đang sử dụng ID từ khachHangId trong đơn hàng:", order.khachHangId);
+            userId = order.khachHangId;
+          } else if (typeof order.ID_KH !== 'undefined') {
+            console.log("Đang sử dụng ID từ ID_KH trong đơn hàng:", order.ID_KH);
+            userId = order.ID_KH;
+          }
+        }
+        
+        // Kiểm tra đơn hàng từ bảng tạm trong DB MySQL
+        if (!userId && order.ID_DHT) {
+          console.log("Đơn hàng từ bảng tạm, đang tìm khachHangId từ ID_DHT:", order.ID_DHT);
+          userId = order.ID_KH; // ID_KH trong DonHangTam
+        }
+        
+        // Để debug, ghi log các trường định danh
+        console.log("Các trường định danh có trong đơn hàng:", {
+          ID_KH: order.ID_KH,
+          userId: order.userId,
+          id_kh: order.id_kh,
+          khachHangId: order.khachHangId,
+          id: order.id,
+          ID_DHT: order.ID_DHT
+        });
+          // Nếu không tìm thấy userId, nhưng có maVanDon, cố gắng lấy thông tin từ khách hàng tạm
+        if (!userId && (order.maVanDon || order.MaVanDon)) {
+          console.warn("Không tìm thấy ID khách hàng trong đơn hàng thông thường, kiểm tra cấu trúc SQL");
+          
+          // Kiểm tra trường hợp đơn hàng từ MySQL - sử dụng ID_KH và Ten_KH
+          if (order.ID_DHT && order.ID_KH) {
+            console.log("Đơn hàng từ MySQL với ID_DHT:", order.ID_DHT, "và ID_KH:", order.ID_KH);
+            userId = order.ID_KH;
+          } else if (order.TenKhachHang) {
+            // Nếu có TenKhachHang từ database nhưng không có ID, tìm khách hàng từ đơn hàng trước đó
+            const cachedOrders = JSON.parse(localStorage.getItem('pendingConfirmations') || '[]');
+            const similarOrder = cachedOrders.find(o => 
+              o.TenKhachHang === order.TenKhachHang && o.ID_KH
+            );
+            
+            if (similarOrder && similarOrder.ID_KH) {
+              console.log("Đã tìm thấy ID_KH từ đơn hàng cached:", similarOrder.ID_KH);
+              userId = similarOrder.ID_KH;
+            }
+          }
+          
+          // Nếu vẫn không tìm thấy, gắn default userId để có thể tiếp tục - chỉ là giải pháp tạm thời
+          if (!userId) {
+            console.warn("Không tìm thấy ID khách hàng trong đơn hàng, sẽ gửi notification không kèm user ID");
+            // Sử dụng userId mặc định nếu có dữ liệu từ nguồn khác
+            if (order.nguoiNhan && order.nguoiNhan.id) {
+              console.log("Sử dụng ID người nhận thay thế:", order.nguoiNhan.id);
+              userId = order.nguoiNhan.id; // Sử dụng ID người nhận thay thế
+            }
+          }
+        }
+        
+        // Tương tự cho orderId
         const orderId = order.ID_DH || order.orderId || order.id || 
                        (order.data && order.data.ID_DH) || 
                        (order.data && order.data.orderId);
@@ -148,6 +354,15 @@ const XacNhanDonHang = () => {
         if (isConnected && socketService.socket) {
           console.log("Đang gửi xác nhận qua socket cho:", {orderId, userId, isOnlinePayment});
           confirmationSent = socketService.sendPaymentConfirmation(orderId, userId, isOnlinePayment);
+          
+          // Gửi thông báo tới staff về đơn hàng mới được xác nhận
+          socketService.socket.emit('order:confirmed', {
+            orderId,
+            orderData: order,
+            confirmedAt: new Date().toISOString(),
+            confirmedBy: 'admin',
+            message: `Đơn hàng ${order.maVanDon || order.MaVanDon || orderId || "N/A"} đã được xác nhận!`
+          });
         }
         
         // Handle result
@@ -193,42 +408,28 @@ const XacNhanDonHang = () => {
                 Mã vận đơn: <b>{order.maVanDon || order.MaVanDon || "N/A"}</b> - Tên Người Nhận: <b>
                   {/* Ưu tiên receiverName, sau đó tenNguoiNhan, TenNguoiNhan, Ten_NN, tenNN, etc */}
                   {order.receiverName ||
-                    order.ReceiverName ||
-                    order.tenNguoiNhan ||
-                    order.TenNguoiNhan ||
-                    (order.nguoiNhan && order.nguoiNhan.ten) ||
-                    (order.data && order.data.receiverName) ||
-                    (order.data && order.data.tenNguoiNhan) ||
-                    (order.data && order.data.nguoiNhan && order.data.nguoiNhan.ten) ||
-                    "N/A"}
-                </b> - Khách Hàng: <b>
+                    "N/A"}                </b> - Khách Hàng: <b>
                   {/* Thông tin khách hàng */}
                   {order.tenKhachHang ||
-                    order.TenKhachHang ||
-                    order.TenKH ||
-                    order.tenKH ||
-                    (order.data && order.data.tenKhachHang) ||
-                    (order.data && order.data.TenKhachHang) ||
+                    order.TenKhachHang || 
+                    (order.khachHang && order.khachHang.tenKhachHang) || 
+                    (order.khachHang && order.khachHang.TenKhachHang) ||
+                    (order.khachHang && order.khachHang.Ten_KH) ||
+                    // Thêm tìm kiếm trường để phù hợp với dữ liệu socket từ backend Node.js
+                    order.Ten_KH ||
                     "N/A"}
                 </b>
                 <br />
                 Phương thức thanh toán: <b>
                   {/* Kiểm tra chi tiết tất cả các trường có thể chứa thông tin thanh toán */}
-                  {order.paymentMethod === 'cash' || 
-                   order.payment_method === 'cash' || 
-                   order.PaymentMethod === 'cash' || 
+                  {order.paymentMethod === 'cash' ||  
                    (order.data && order.data.paymentMethod === 'cash') ||
-                   order.paymentMethod === 1 || 
-                   order.payment_method === 1 || 
-                   order.PaymentMethod === 1
+                   order.paymentMethod === 1 
                     ? 'Tiền mặt khi nhận hàng'
                     : order.paymentMethod === 'online' || 
-                      order.payment_method === 'online' || 
-                      order.PaymentMethod === 'online' ||
+                      
                       (order.data && order.data.paymentMethod === 'online') ||
                       order.paymentMethod === 2 || 
-                      order.payment_method === 2 || 
-                      order.PaymentMethod === 2 || 
                       order.paymentMethod === 'momo'
                     ? 'Chuyển khoản/MoMo'
                     : 'Chưa xác định'}

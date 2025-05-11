@@ -196,11 +196,180 @@ const markAllNotificationsAsRead = async (req, res) => {
     }
 };
 
+// Get notifications for all orders of a user
+const getNotificationsByUser = async (req, res) => {
+    const { userId } = req.params;
+    let conn;
+    try {
+        conn = await connection.getConnection();
+        // Lấy tất cả thông báo của các đơn hàng của người dùng này
+        const [notifications] = await conn.query(`
+            SELECT tb.*
+            FROM ThongBao tb
+            JOIN DonHang dh ON tb.ID_DH = dh.ID_DH
+            JOIN KhachHang kh ON dh.ID_KH = kh.ID_KH
+            WHERE kh.ID_KH = ?
+            ORDER BY tb.NgayTB DESC
+        `, [userId]);
+        res.status(200).json({
+            success: true,
+            data: notifications
+        });
+    } catch (err) {
+        console.error('Error fetching user notifications:', err);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch user notifications'
+        });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
+// Mark all notifications as read for a user
+const markUserNotificationsAsRead = async (req, res) => {
+    const { userId } = req.params;
+    let conn;
+    try {
+        conn = await connection.getConnection();
+        // Cập nhật DaDoc = 1 cho tất cả thông báo của người dùng này
+        await conn.query(`
+            UPDATE ThongBao tb
+            JOIN DonHang dh ON tb.ID_DH = dh.ID_DH
+            SET tb.DaDoc = 1
+            WHERE dh.ID_KH = ?
+        `, [userId]);
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('Error marking user notifications as read:', err);
+        res.status(500).json({ success: false, error: 'Failed to mark notifications as read' });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
+// Mark a single notification as read
+const markNotificationAsRead = async (req, res) => {
+    const { id } = req.params;
+    let conn;
+    try {
+        conn = await connection.getConnection();
+        // Update the specific notification to mark as read
+        await conn.query('UPDATE ThongBao SET DaDoc = 1 WHERE ID_TB = ?', [id]);
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('Error marking notification as read:', err);
+        res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
+// Get all notifications (for admin)
+const getAllNotifications = async (req, res) => {
+    let conn;
+    try {
+        conn = await connection.getConnection();
+        // Lấy tất cả thông báo trong hệ thống, kết hợp với thông tin đơn hàng
+        const [notifications] = await conn.query(`
+            SELECT tb.*, dh.MaVanDon
+            FROM ThongBao tb
+            LEFT JOIN DonHang dh ON tb.ID_DH = dh.ID_DH
+            ORDER BY tb.NgayTB DESC
+        `);
+        res.status(200).json({
+            success: true,
+            data: notifications
+        });
+    } catch (err) {
+        console.error('Error fetching all notifications:', err);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch notifications'
+        });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
+// Get notifications for a staff member since a specific timestamp
+const getNotificationsByStaffSince = async (req, res) => {
+    const { staffId, timestamp } = req.params;
+    const since = new Date(parseInt(timestamp));
+    
+    let conn;
+    try {
+        conn = await connection.getConnection();
+        // Lấy thông báo kể từ thời điểm được chỉ định
+        const [notifications] = await conn.query(`
+            SELECT tb.*
+            FROM ThongBao tb
+            JOIN DonHang dh ON tb.ID_DH = dh.ID_DH
+            WHERE dh.ID_NV = ? AND tb.NgayTB > ?
+            ORDER BY tb.NgayTB DESC
+        `, [staffId, since]);
+        
+        res.status(200).json({
+            success: true,
+            data: notifications
+        });
+    } catch (err) {
+        console.error('Error fetching staff notifications since timestamp:', err);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch staff notifications'
+        });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
+// Get notifications for a user since a specific timestamp
+const getNotificationsByUserSince = async (req, res) => {
+    const { userId, timestamp } = req.params;
+    const since = new Date(parseInt(timestamp));
+    
+    let conn;
+    try {
+        conn = await connection.getConnection();
+        // Lấy thông báo kể từ thời điểm được chỉ định
+        const [notifications] = await conn.query(`
+            SELECT tb.*
+            FROM ThongBao tb
+            JOIN DonHang dh ON tb.ID_DH = dh.ID_DH
+            JOIN KhachHang kh ON dh.ID_KH = kh.ID_KH
+            WHERE kh.ID_KH = ? AND tb.NgayTB > ?
+            ORDER BY tb.NgayTB DESC
+        `, [userId, since]);
+        
+        res.status(200).json({
+            success: true,
+            data: notifications
+        });
+    } catch (err) {
+        console.error('Error fetching user notifications since timestamp:', err);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch user notifications'
+        });
+    } finally {
+        if (conn) conn.release();
+    }
+};
+
 module.exports = {
     getNotificationsByOrder,
     getNotificationsByStaff,
     createNotification,
     deleteNotification,
     createOrderStatusNotification,
-    markAllNotificationsAsRead
+    markAllNotificationsAsRead,
+    // Add new controllers for user notifications
+    getNotificationsByUser,
+    markUserNotificationsAsRead,
+    markNotificationAsRead,
+    getAllNotifications,
+    // Add new controllers for sync
+    getNotificationsByStaffSince,
+    getNotificationsByUserSince
 };
