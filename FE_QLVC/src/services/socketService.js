@@ -2,7 +2,7 @@ import { io } from 'socket.io-client';
 import { toast } from 'react-toastify';
 
 // Biến API_URL cho các API calls bình thường
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 // Socket server luôn chạy ở root path, không phải /api
 const SOCKET_SERVER_URL = API_URL.includes('/api') 
@@ -54,8 +54,7 @@ class SocketService {
       console.error('Socket connection error:', error);
       toast.error('Không thể kết nối với máy chủ thông báo');
     });
-  }
-  setupSocketListeners() {
+  }  setupSocketListeners() {
     const events = [
       'new_order',
       'order_accepted',
@@ -67,7 +66,7 @@ class SocketService {
 
     events.forEach(event => {
       this.socket.on(event, (data) => {
-        console.log(`Received ${event} event:`, data);
+        // console.log(`Received ${event} event:`, data);
         
         // Gọi các callback đã đăng ký cho event này
         const eventName = this.getCallbackName(event);
@@ -77,7 +76,23 @@ class SocketService {
 
         // Hiển thị thông báo toast nếu có message
         if (data.message) {
-          toast.info(data.message);
+          if (data.type === 'congratulation') {
+            // Hiển thị thông báo chúc mừng với style đặc biệt
+            toast.success(data.message, {
+              icon: data.icon || "🎉",
+              autoClose: 8000,  // Thời gian hiển thị lâu hơn (8 giây)
+              className: 'congratulation-toast'
+            });
+          } else if (data.priority === 'high') {
+            // Thông báo quan trọng
+            toast.error(data.message, { autoClose: 6000 });
+          } else if (data.priority === 'medium') {
+            // Thông báo mức độ trung bình
+            toast.warning(data.message);
+          } else {
+            // Thông báo thông thường
+            toast.info(data.message);
+          }
         }
       });
     });
@@ -133,7 +148,6 @@ class SocketService {
       this.callbacks.orderCanceled = this.callbacks.orderCanceled.filter(cb => cb !== callback);
     };
   }
-
   // Đăng ký callback cho sự kiện thông báo chung
   onNotification(callback) {
     if (typeof callback === 'function') {
@@ -143,6 +157,43 @@ class SocketService {
       this.callbacks.notification = this.callbacks.notification.filter(cb => cb !== callback);
     };
   }
+
+  // Đăng ký callback cho sự kiện thông báo mới
+  onNewNotification(callback) {
+    if (typeof callback === 'function') {
+      this.callbacks.notification.push(callback);
+    }
+    return () => {
+      this.callbacks.notification = this.callbacks.notification.filter(cb => cb !== callback);
+    };
+  }
+
+  // Hủy đăng ký callback cho sự kiện thông báo mới
+  offNewNotification(callback) {
+    if (typeof callback === 'function') {
+      this.callbacks.notification = this.callbacks.notification.filter(cb => cb !== callback);
+    }
+  }
+
+  // Add a new handler for order confirmation
+  onOrderConfirmed(callback) {
+    if (this.socket) {
+      this.socket.on('order:confirmed', (data) => {
+        console.log('Socket received order:confirmed event:', data);
+        if (callback && typeof callback === 'function') {
+          callback(data);
+        }
+      });
+      
+      return () => {
+        this.socket.off('order:confirmed');
+      };
+    } else {
+      console.error('Socket is not connected. Cannot register onOrderConfirmed handler.');
+      return () => {};
+    }
+  }
+
   // Ngắt kết nối socket
   disconnect() {
     if (this.socket) {
@@ -150,33 +201,59 @@ class SocketService {
       this.socket = null;
     }
   }
-
   // Gửi thông báo xác nhận thanh toán thành công
   sendPaymentConfirmation(orderId, userId, isOnlinePayment = false) {
-    if (this.socket && this.socket.connected && userId) {
-      const eventData = {
-        orderId,
-        userId,
-        timestamp: Date.now(),
-        paymentType: isOnlinePayment ? 'online' : 'cash',
-        message: isOnlinePayment 
-          ? 'Thanh toán đã được xác nhận thành công'
-          : 'Đơn hàng của bạn đã được xác nhận'
-      };
-      
-      // Gửi thông báo xác nhận thanh toán hoặc xác nhận đơn hàng
-      this.socket.emit('payment_confirmed', eventData);
-      
-      // Gửi thông báo tới khách hàng cụ thể
-      this.socket.emit('send_notification', {
-        to: `customer_${userId}`,
-        data: eventData
-      });
-      
-      console.log('Đã gửi thông báo xác nhận cho khách hàng:', orderId, userId, isOnlinePayment ? 'thanh toán online' : 'thanh toán khi nhận hàng');
-      return true;
+    // Enhanced validation
+    if (!orderId) {
+      console.error("Cannot send payment confirmation: Missing orderId");
+      return false;
+    }
+    
+    // Prepare notification data
+    const eventData = {
+      type: isOnlinePayment ? 'payment_confirmed' : 'order_confirmed',
+      title: isOnlinePayment 
+        ? 'Xác nhận thanh toán' 
+        : 'Xác nhận đơn hàng',
+      message: isOnlinePayment 
+        ? 'Thanh toán của bạn đã được xác nhận. Đơn hàng đang được xử lý.' 
+        : 'Đơn hàng của bạn đã được xác nhận và đang được xử lý.',
+      orderId: orderId,
+      timestamp: new Date().toISOString(),
+      data: { orderId, isOnlinePayment }
+    };
+    
+    // Có userId thì gửi thông báo đến người dùng cụ thể, không có thì chỉ gửi thông báo chung
+    if (!userId) {
+      console.warn("Missing userId for notification - will only send global confirmation");
+    }
+    
+    if (this.socket && this.socket.connected) {
+      try {
+        
+        // Gửi thông báo tới khách hàng cụ thể
+        this.socket.emit('send_notification', {
+          to: `customer_${userId}`,
+          data: eventData
+        });
+        
+        // Also emit the confirmation event
+        this.socket.emit('order:confirmed', {
+          orderId,
+          userId,
+          isOnlinePayment,
+          confirmedAt: new Date().toISOString(),
+          confirmedBy: 'admin'
+        });
+        
+        console.log(`Notification sent to customer_${userId} about order ${orderId}`);
+        return true;
+      } catch (err) {
+        console.error("Error sending notification:", err);
+        return false;
+      }
     } else {
-      console.error('Socket không kết nối hoặc thiếu thông tin người dùng, không thể gửi thông báo xác nhận');
+      console.warn("Socket not connected. Cannot send notification.");
       return false;
     }
   }

@@ -92,7 +92,7 @@ const LoginPage = () => {
                             </button>
                         </form>
 
-                        <a href="#" className="forgot-password">
+                        <a href="/forgotpassword" className="forgot-password">
                             Quên mật khẩu?
                         </a>
 

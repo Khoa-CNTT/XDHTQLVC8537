@@ -599,7 +599,7 @@ export const orderService = {
         // Otherwise fetch fresh data
       }
       
-      console.log("Fetching pending orders");
+      // console.log("Fetching pending orders");
       const response = await axios.get(`${API_BASE_URL}/pending-orders`, {
         headers: {
           Authorization: `Bearer ${getToken()}`

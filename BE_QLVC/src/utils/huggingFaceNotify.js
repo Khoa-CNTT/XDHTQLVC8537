@@ -17,6 +17,9 @@ async function generateLateDeliveryMessageHF(order) {
     order.TenKhachHang || "Không rõ"
   }, địa chỉ: ${order.DiaChiNN || "Không rõ"}.`;
   try {
+    console.log('Đang gọi Hugging Face API với token:', HF_API_KEY ? `${HF_API_KEY.substring(0, 5)}...${HF_API_KEY.substring(HF_API_KEY.length - 5)}` : 'Token không tồn tại');
+    
+    // Đặt timeout lớn hơn cho API call
     const response = await axios.post(
       `https://api-inference.huggingface.co/models/${HF_MODEL}`,
       { inputs: prompt },
@@ -25,9 +28,10 @@ async function generateLateDeliveryMessageHF(order) {
           Authorization: `Bearer ${HF_API_KEY}`,
           "Content-Type": "application/json",
         },
-        timeout: 30000,
+        timeout: 60000 // Tăng timeout lên 60 giây
       }
     );
+    
     // Tùy model, response có thể khác nhau
     if (
       response.data &&
@@ -42,11 +46,12 @@ async function generateLateDeliveryMessageHF(order) {
     // Fallback
     return JSON.stringify(response.data);
   } catch (err) {
-    console.error(
-      "Lỗi khi gọi Hugging Face Inference API:",
-      err.response?.data || err.message
-    );
-    throw err;
+    console.error('Lỗi khi gọi Hugging Face Inference API:', err.response?.data || err.message);
+    
+    // Trả về thông báo mặc định thay vì throw lỗi
+    const defaultMessage = `Đơn hàng ${order.MaVanDon || order.ID_DH} đã bị giao trễ. Xin lỗi khách hàng ${order.TenKhachHang || 'Quý khách'} vì sự bất tiện này. Chúng tôi đang nỗ lực để hoàn thành đơn hàng sớm nhất có thể.`;
+    console.log('Sử dụng thông báo mặc định:', defaultMessage);
+    return defaultMessage;
   }
 }
 

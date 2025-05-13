@@ -7,17 +7,22 @@ const UserHistory = ({ userOrders }) => {
     const [statusFilter, setStatusFilter] = useState('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [showCompletedOrders, setShowCompletedOrders] = useState(false);
 
-    // Filter orders based on search term and status filter
-    const filteredOrders = userOrders.filter(order => {
+    // Separate orders into active and completed
+    const activeOrders = userOrders.filter(order => order.TrangThaiDonHang !== 'Đã giao');
+    const completedOrders = userOrders.filter(order => order.TrangThaiDonHang === 'Đã giao');
+
+    // Filter orders based on search term, status filter, and active/completed state
+    const filteredOrders = (showCompletedOrders ? completedOrders : activeOrders).filter(order => {
         const matchesSearch = 
             order.MaVanDon?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             order.TenHH?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             order.TenNguoiNhan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (order.Ten_NN && order.Ten_NN.toLowerCase().includes(searchTerm.toLowerCase()));
 
-        const matchesStatus = statusFilter === 'all' || 
-            (order.TrangThaiDonHang?.toLowerCase() === statusFilter.replace(/-/g, ' '));
+        const matchesStatus = statusFilter === 'all' || statusFilter === 'completed' ? 
+            true : (order.TrangThaiDonHang?.toLowerCase() === statusFilter.replace(/-/g, ' '));
 
         return matchesSearch && matchesStatus;
     });
@@ -40,10 +45,96 @@ const UserHistory = ({ userOrders }) => {
         { value: 'đang-chờ-xử-lý', label: 'Đang chờ xử lý' },
         { value: 'đã-tiếp-nhận', label: 'Đã tiếp nhận' },
         { value: 'đang-vận-chuyển', label: 'Đang vận chuyển' },
-        { value: 'đã-giao', label: 'Đã giao' },
         { value: 'giao-thất-bại', label: 'Giao thất bại' },
-        { value: 'huỷ-giao', label: 'Huỷ giao' }
+        { value: 'huỷ-giao', label: 'Huỷ giao' },
+        { value: 'completed', label: 'Đã hoàn thành' }
     ];
+
+    // Function to render the order table
+    const renderOrderTable = (orders, tableType) => {
+        return (
+            <div className={`orders-table-container ${tableType === 'completed' ? 'completed-orders-table' : ''}`}>
+                <table className="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Mã vận đơn</th>
+                            <th>Sản phẩm</th>
+                            <th>Người nhận</th>
+                            <th>Địa chỉ</th>
+                            <th>Trạng thái</th>
+                            <th>Phí giao hàng</th>
+                            <th>Ngày tạo</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {orders.length > 0 ? (
+                            orders.map((order) => (
+                                <tr key={order.ID_DH} className={`order-row ${tableType === 'completed' ? 'completed-order-row' : ''}`}>
+                                    <td className="order-code">
+                                        {order.MaVanDon}
+                                        <div className="order-date-mobile">
+                                            {new Date(order.NgayTaoDon).toLocaleDateString('vi-VN')}
+                                        </div>
+                                    </td>
+                                    <td className="order-product">{order.TenHH}</td>
+                                    <td>{order.TenNguoiNhan || order.Ten_NN}</td>
+                                    <td className="order-address" title={order.DiaChiNN}>
+                                        {order.DiaChiNN}
+                                    </td>
+                                    <td>
+                                        <span className={`order-status status-${order.TrangThaiDonHang?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
+                                            {order.TrangThaiDonHang || 'Chưa xác định'}
+                                        </span>
+                                    </td>
+                                    <td className="order-fee">{formatCurrency(order.PhiGiaoHang || 0)}</td>
+                                    <td className="order-date">
+                                        {new Date(order.NgayTaoDon).toLocaleDateString('vi-VN')}
+                                    </td>
+                                    <td className="order-actions">
+                                        <button 
+                                            className="action-btn details-btn" 
+                                            title="Xem chi tiết đơn hàng"
+                                            onClick={() => handleViewDetails(order)}
+                                            aria-label="Xem chi tiết đơn hàng"
+                                        >
+                                            <span className="action-btn-icon details-icon">
+                                                <i className="fas fa-info-circle"></i>
+                                            </span>
+                                            <span className="action-tooltip">Chi tiết</span>
+                                        </button>
+                                        <button 
+                                            className="action-btn track-btn" 
+                                            title="Theo dõi vị trí đơn hàng"
+                                            disabled={['Đã giao', 'Giao thất bại', 'Huỷ giao'].includes(order.TrangThaiDonHang)}
+                                            aria-label="Theo dõi vị trí đơn hàng"
+                                        >
+                                            <span className="action-btn-icon track-icon">
+                                                <i className="fas fa-route"></i>
+                                            </span>
+                                            <span className="action-tooltip">Theo dõi</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="8" className="no-results">
+                                    <div className="no-results-message">
+                                        <i className="fas fa-search"></i>
+                                        <p>{tableType === 'completed' 
+                                            ? 'Không có đơn hàng đã hoàn thành' 
+                                            : 'Không tìm thấy đơn hàng phù hợp'}
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
 
     return (
         <div className="order-history-container">
@@ -88,84 +179,51 @@ const UserHistory = ({ userOrders }) => {
                                 ))}
                             </select>
                         </div>
+
+                        {/* Toggle button for completed orders */}
+                        <div className="order-view-toggle">
+                            <button 
+                                className={`toggle-btn ${!showCompletedOrders ? 'active' : ''}`}
+                                onClick={() => {
+                                    setShowCompletedOrders(false);
+                                    if (statusFilter === 'completed') {
+                                        setStatusFilter('all');
+                                    }
+                                }}
+                            >
+                                Đơn hàng đang xử lý ({activeOrders.length})
+                                {!showCompletedOrders && <span className="active-indicator"></span>}
+                            </button>
+                            <button 
+                                className={`toggle-btn ${showCompletedOrders ? 'active' : ''}`}
+                                onClick={() => {
+                                    setShowCompletedOrders(true);
+                                    setStatusFilter('all');
+                                }}
+                            >
+                                Đơn đã hoàn thành ({completedOrders.length})
+                                {showCompletedOrders && <span className="active-indicator"></span>}
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="orders-table-container">
-                        <table className="orders-table">
-                            <thead>
-                                <tr>
-                                    <th>Mã vận đơn</th>
-                                    <th>Sản phẩm</th>
-                                    <th>Người nhận</th>
-                                    <th>Địa chỉ</th>
-                                    <th>Trạng thái</th>
-                                    <th>Phí giao hàng</th>
-                                    <th>Ngày tạo</th>
-                                    <th>Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredOrders.length > 0 ? (
-                                    filteredOrders.map((order) => (
-                                        <tr key={order.ID_DH} className="order-row">
-                                            <td className="order-code">
-                                                {order.MaVanDon}
-                                                <div className="order-date-mobile">
-                                                    {new Date(order.NgayTaoDon).toLocaleDateString('vi-VN')}
-                                                </div>
-                                            </td>
-                                            <td className="order-product">{order.TenHH}</td>
-                                            <td>{order.TenNguoiNhan || order.Ten_NN}</td>
-                                            <td className="order-address" title={order.DiaChiNN}>
-                                                {order.DiaChiNN}
-                                            </td>
-                                            <td>
-                                                <span className={`order-status status-${order.TrangThaiDonHang?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
-                                                    {order.TrangThaiDonHang || 'Chưa xác định'}
-                                                </span>
-                                            </td>
-                                            <td className="order-fee">{formatCurrency(order.PhiGiaoHang || 0)}</td>
-                                            <td className="order-date">
-                                                {new Date(order.NgayTaoDon).toLocaleDateString('vi-VN')}
-                                            </td>
-                                            <td className="order-actions">
-                                                <button 
-                                                    className="action-btn details-btn" 
-                                                    title="Xem chi tiết đơn hàng"
-                                                    onClick={() => handleViewDetails(order)}
-                                                    aria-label="Xem chi tiết đơn hàng"
-                                                >
-                                                    <span className="action-btn-icon details-icon">
-                                                        <i className="fas fa-info-circle"></i>
-                                                    </span>
-                                                    <span className="action-tooltip">Chi tiết</span>
-                                                </button>
-                                                <button 
-                                                    className="action-btn track-btn" 
-                                                    title="Theo dõi vị trí đơn hàng"
-                                                    disabled={['Đã giao', 'Giao thất bại', 'Huỷ giao'].includes(order.TrangThaiDonHang)}
-                                                    aria-label="Theo dõi vị trí đơn hàng"
-                                                >
-                                                    <span className="action-btn-icon track-icon">
-                                                        <i className="fas fa-route"></i>
-                                                    </span>
-                                                    <span className="action-tooltip">Theo dõi</span>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="8" className="no-results">
-                                            <div className="no-results-message">
-                                                <i className="fas fa-search"></i>
-                                                <p>Không tìm thấy đơn hàng phù hợp</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                    {/* Table headers */}
+                    <div className="orders-section">
+                        {showCompletedOrders ? (
+                            <>
+                                <h3 className="orders-section-title completed-orders-title">
+                                    <i className="fas fa-check-circle"></i> Đơn hàng đã hoàn thành
+                                </h3>
+                                {renderOrderTable(filteredOrders, 'completed')}
+                            </>
+                        ) : (
+                            <>
+                                <h3 className="orders-section-title active-orders-title">
+                                    <i className="fas fa-clipboard-list"></i> Đơn hàng của bạn
+                                </h3>
+                                {renderOrderTable(filteredOrders, 'active')}
+                            </>
+                        )}
                     </div>
 
                     {filteredOrders.length > 0 && (

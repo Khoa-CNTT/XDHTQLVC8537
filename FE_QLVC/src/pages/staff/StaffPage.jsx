@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import StaffView from '../../components/staff/StaffView';
 import StaffNotification from '../../components/staff/StaffNotification';
+import StaffProfileUpdateForm from '../../components/staff/StaffProfileUpdateForm';
 import socketService from '../../services/socketService';
 import { notificationService } from '../../services/notificationService';
 import { toast } from 'react-toastify';
@@ -65,8 +66,21 @@ const StaffPage = () => {
             ]);
             
             setEmployees(empData || []);
-            setOrders(ordersData?.filter(o => o.TrangThaiDonHang !== 'Đã giao') || []);
-            setPendingOrders(pendingOrdersData || []);
+            
+            // Chỉ hiển thị các đơn hàng đã được admin xác nhận
+            const confirmedOrders = ordersData?.filter(o => 
+                o.TrangThaiDonHang !== 'Đã giao' && 
+                o.IsConfirmed !== false // Chỉ lấy đơn đã xác nhận hoặc không có trạng thái xác nhận
+            ) || [];
+            setOrders(confirmedOrders);
+            
+            // Chỉ hiển thị đơn hàng chờ xử lý đã được admin xác nhận
+            const confirmedPendingOrders = pendingOrdersData?.filter(o => 
+                o.IsConfirmed !== false && // Đã được admin xác nhận
+                (!o.ID_NV || o.ID_NV === null) // Chưa có nhân viên nhận
+            ) || [];
+            setPendingOrders(confirmedPendingOrders);
+            
             setDeliveredOrders(ordersData?.filter(o => o.TrangThaiDonHang === 'Đã giao') || []);
 
         } catch (err) {
@@ -120,13 +134,20 @@ const StaffPage = () => {
         const unsubNewOrder = socketService.onNewOrder((data) => {
             console.log('Nhận được sự kiện đơn hàng mới:', data);
             
-            // Cập nhật danh sách đơn hàng chờ xử lý
-            orderService.getPendingOrders()
-                .then(updatedPendingOrders => {
-                    setPendingOrders(updatedPendingOrders || []);
-                    toast.info('Có đơn hàng mới đang chờ xử lý!');
-                })
-                .catch(error => console.error('Lỗi khi cập nhật danh sách đơn hàng chờ:', error));
+            // Chỉ cập nhật nếu đơn hàng đã được admin xác nhận
+            if (data.IsConfirmed !== false) {
+                // Cập nhật danh sách đơn hàng chờ xử lý
+                orderService.getPendingOrders()
+                    .then(updatedPendingOrders => {
+                        // Lọc chỉ lấy đơn hàng đã xác nhận
+                        const confirmedOrders = updatedPendingOrders?.filter(o => 
+                            o.IsConfirmed !== false
+                        ) || [];
+                        setPendingOrders(confirmedOrders);
+                        toast.info('Có đơn hàng mới đang chờ xử lý!');
+                    })
+                    .catch(error => console.error('Lỗi khi cập nhật danh sách đơn hàng chờ:', error));
+            }
         });
         
         // Đăng ký lắng nghe sự kiện đơn hàng được tiếp nhận
@@ -163,13 +184,21 @@ const StaffPage = () => {
             }
         });
 
-        // Lắng nghe socket cho thông báo mới (nếu có event riêng)
+        // Thêm lắng nghe sự kiện khi admin xác nhận đơn hàng
         if (socketService.socket) {
-            socketService.socket.on('notification:new', (data) => {
-                console.log('Nhận được sự kiện notification:new:', data);
-                fetchNotifications(user.ID_NV);
-                // Hiển thị toast khi có thông báo mới
-                toast.info(`🔔 Thông báo mới: ${data.message || 'Bạn có thông báo mới!'}`);
+            socketService.socket.on('order:confirmed', (data) => {
+                console.log('Nhận được sự kiện order:confirmed:', data);
+                
+                // Cập nhật danh sách đơn hàng chờ xử lý
+                orderService.getPendingOrders()
+                    .then(updatedPendingOrders => {
+                        const confirmedOrders = updatedPendingOrders?.filter(o => 
+                            o.IsConfirmed !== false
+                        ) || [];
+                        setPendingOrders(confirmedOrders);
+                        toast.info('Có đơn hàng mới đã được xác nhận!');
+                    })
+                    .catch(error => console.error('Lỗi khi cập nhật danh sách đơn hàng chờ:', error));
             });
         }
         
@@ -180,6 +209,7 @@ const StaffPage = () => {
             unsubOrderStatusChanged();
             if (socketService.socket) {
                 socketService.socket.off('notification:new');
+                socketService.socket.off('order:confirmed');
             }
         };
     }, [auth.isAuthenticated, user, fetchNotifications]);
@@ -539,13 +569,13 @@ const StaffPage = () => {
                                                 <th>Hàng hoá</th>
                                                 <th>Ngày tạo</th>
                                                 <th>Tiền thu hộ</th>
-                                                <th>Trạng thái thanh toán</th> {/* Thêm cột mới */}
+                                                <th>Trạng thái thanh toán</th>
                                                 <th>Thao tác</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {pendingOrders.map((order) => (
-                                                <tr key={order.ID_DH} className="order-row">
+                                                <tr key={order.ID_DH || order.ID_DHT || `pending-${order.MaVanDon}`} className="order-row">
                                                     <td className="order-code">{order.MaVanDon}</td>
                                                     <td>{order.TenKhachHang || 'N/A'}</td>
                                                     <td>{order.TenNguoiNhan || 'N/A'}</td>
@@ -564,8 +594,8 @@ const StaffPage = () => {
                                                     <td>
                                                         {/* Hiển thị trạng thái thanh toán */}
                                                         {order.paymentMethod === 'cash' && 'Tiền mặt'}
-                                                        {order.paymentMethod === 'online' && !order.isTransferConfirmed && 'Chuyển khoản (chờ xác nhận)'},
-                                                        {order.paymentMethod === 'online' && order.isTransferConfirmed && 'Chuyển khoản (đã xác nhận)'},
+                                                        {order.paymentMethod === 'online' && !order.isTransferConfirmed && 'Chuyển khoản (chờ xác nhận)'}
+                                                        {order.paymentMethod === 'online' && order.isTransferConfirmed && 'Chuyển khoản (đã xác nhận)'}
                                                         {!order.paymentMethod && 'Không xác định'}
                                                     </td>
                                                     <td className="order-actions">
@@ -577,15 +607,12 @@ const StaffPage = () => {
                                                             {loading ? 'Đang xử lý...' : 'Nhận đơn'}
                                                         </button>
                                                         <button 
-                                                            className="action-btn details-btn" 
+                                                            className="details-btn" 
                                                             title="Xem chi tiết đơn hàng"
                                                             onClick={() => handleViewDetails(order)}
                                                             aria-label="Xem chi tiết đơn hàng"
                                                         >
-                                                            <span className="action-btn-icon details-icon">
-                                                                <i className="fas fa-info-circle"></i>
-                                                            </span>
-                                                            <span className="action-tooltip">Chi tiết</span>
+                                                            Xem chi tiết
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -632,8 +659,18 @@ const StaffPage = () => {
                                                     <td>
                                                         {order.NgayTaoDon ? 
                                                             new Date(order.NgayTaoDon).toLocaleDateString('vi-VN') : 'N/A'}
-                                                    </td>
-                                                    <td className="order-actions">
+                                                    </td>                                                    <td className="order-actions">
+                                                        <button 
+                                                            className="details-btn" 
+                                                            title="Xem chi tiết đơn hàng"
+                                                            onClick={() => handleViewDetails(order)}
+                                                            aria-label="Xem chi tiết đơn hàng"
+                                                        >
+                                                            <span className="action-btn-icon details-icon">
+                                                                <i className="fas fa-info-circle"></i>
+                                                            </span>
+                                                            <span className="action-tooltip">Chi tiết</span>
+                                                        </button>
                                                         <select 
                                                             className="status-select"
                                                             value={order.TrangThaiDonHang || ''}
@@ -652,17 +689,6 @@ const StaffPage = () => {
                                                             <option value="Huỷ giao">Huỷ giao</option>
                                                             <option value="Đã Hoàn">Đã Hoàn</option>
                                                         </select>
-                                                        <button 
-                                                            className="action-btn details-btn" 
-                                                            title="Xem chi tiết đơn hàng"
-                                                            onClick={() => handleViewDetails(order)}
-                                                            aria-label="Xem chi tiết đơn hàng"
-                                                        >
-                                                            <span className="action-btn-icon details-icon">
-                                                                <i className="fas fa-info-circle"></i>
-                                                            </span>
-                                                            <span className="action-tooltip">Chi tiết</span>
-                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -708,8 +734,7 @@ const StaffPage = () => {
                         </div>
                     )}
 
-                    {/* Profile Section */}
-                    {activeItem === 'profile' && user && (
+                    {/* Profile Section */}                    {activeItem === 'profile' && user && (
                         <div className="order-form-container">
                             <h2 className="order-form-title">Thông tin cá nhân</h2>
                             <div className="profile-section">
@@ -720,6 +745,16 @@ const StaffPage = () => {
                                     <p><strong>Địa chỉ:</strong> {user.DiaChi}</p>
                                     <p><strong>Vai trò:</strong> Nhân viên</p>
                                 </div>
+                            </div>
+                            
+                            {/* Form cập nhật thông tin cá nhân */}
+                            <div className="profile-update-section">
+                                <StaffProfileUpdateForm 
+                                    user={user}
+                                    onUpdateSuccess={(updatedUser) => {
+                                        setUser(updatedUser);
+                                    }}
+                                />
                             </div>
                         </div>
                     )}

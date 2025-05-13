@@ -5,6 +5,9 @@ import logo from '../../assets/thong.jpg';
 const StaffView = () => {
     return (
         <div className="intro-container">
+            {/* Thêm modal chúc mừng */}
+           
+            
             <header className="intro-header">
                 <img src={logo} alt="Quản Lý Vận Chuyển" className="intro-logo" />
                 <h1>Hệ Thống Quản Lý Vận Chuyển</h1>

@@ -3,13 +3,11 @@ import './StaffNotification.css';
 
 const StaffNotification = ({ notifications = [], onClose }) => {
     // Debug log để kiểm tra dữ liệu nhận được
-    console.log('StaffNotification notifications:', notifications);
-
     return (
         <div className="staff-notification-popup" onClick={onClose}>
             <div className="staff-notification-content" onClick={e => e.stopPropagation()}>
                 <div className="staff-notification-header">
-                    <span>Thông báo từ AI</span>
+                    <span>Thông báo</span>
                     <div style={{ flex: 1 }} />
                     <button className="close-btn" onClick={onClose} style={{ marginLeft: 'auto' }}>
                         <i className="fas fa-times"></i>
@@ -27,7 +25,7 @@ const StaffNotification = ({ notifications = [], onClose }) => {
                                 <div className="notification-message">
                                     {noti.NoiDung && noti.NoiDung.trim() !== ''
                                         ? noti.NoiDung
-                                        : 'Thông báo từ AI'}
+                                        : 'Thông báo'}
                                 </div>
                                 <div className="notification-time">
                                     {noti.NgayTB ? new Date(noti.NgayTB).toLocaleString('vi-VN') : ''}

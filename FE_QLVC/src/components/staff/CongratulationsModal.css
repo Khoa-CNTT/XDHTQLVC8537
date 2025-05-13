@@ -1,0 +1,196 @@
+/* CongratulationsModal.css */
+.congratulations-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.congratulations-modal-container {
+  background: linear-gradient(135deg, #3a4fb3, #1e2b6a);
+  border-radius: 12px;
+  min-width: 320px;
+  max-width: 480px;
+  width: 90%;
+  color: white;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.congratulations-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.congratulations-modal-title {
+  display: flex;
+  align-items: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.congratulations-icon {
+  font-size: 1.8rem;
+  margin-right: 10px;
+  animation: pulse 2s infinite;
+}
+
+.congratulations-close-button {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.congratulations-close-button:hover {
+  opacity: 1;
+}
+
+.congratulations-modal-content {
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  min-height: 120px;
+}
+
+.congratulations-message {
+  margin-bottom: 10px;
+  font-size: 16px;
+  line-height: 1.6;
+  white-space: pre-line;
+  position: relative;
+  z-index: 2;
+}
+
+.congratulations-modal-footer {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.congratulations-button {
+  background-color: #4caf50;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.congratulations-button:hover {
+  background-color: #5dc762;
+}
+
+/* Confetti Animation */
+.confetti-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.confetti {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 0;
+  background-color: #ffeb3b;
+  opacity: 0.7;
+  animation: confettiFall 5s ease-in-out infinite;
+}
+
+.confetti-1 {
+  left: 10%;
+  background-color: #f44336;
+  animation-delay: 0s;
+}
+
+.confetti-2 {
+  left: 30%;
+  background-color: #2196f3;
+  animation-delay: 0.8s;
+}
+
+.confetti-3 {
+  left: 50%;
+  background-color: #4caf50;
+  animation-delay: 0.4s;
+}
+
+.confetti-4 {
+  left: 70%;
+  background-color: #ffeb3b;
+  animation-delay: 1.2s;
+}
+
+.confetti-5 {
+  left: 85%;
+  background-color: #ff9800;
+  animation-delay: 0.5s;
+}
+
+.confetti-6 {
+  left: 15%;
+  background-color: #9c27b0;
+  animation-delay: 1s;
+}
+
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-50px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(300px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
