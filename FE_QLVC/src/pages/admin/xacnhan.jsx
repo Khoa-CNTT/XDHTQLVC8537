@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
 import socketService from "../../services/socketService";
+import './XacnhanStyles.css'; // Import the new CSS file
 
 const XacNhanDonHang = () => {  
   const [pendingOrders, setPendingOrders] = useState([]);
@@ -139,11 +140,16 @@ const XacNhanDonHang = () => {
     });
     
     // Set up event handlers only after connection is established
-    const setupEventHandlers = () => {
-      const unsubNewOrder = socketService.onNewOrder((order) => {
+    const setupEventHandlers = () => {      const unsubNewOrder = socketService.onNewOrder((order) => {
         console.log("Received new order data:", order);
+        
+        // Chuẩn hóa cấu trúc đơn hàng
+        const normalizedOrder = normalizeOrderStructure(order);
+        console.log("Đơn hàng sau khi chuẩn hóa:", normalizedOrder);
+        
         // Kiểm tra xem đơn hàng đã tồn tại trong danh sách chưa
-        const orderKey = order.maVanDon || order.MaVanDon || order.ID_DH || order.id;
+        const orderKey = normalizedOrder.maVanDon || normalizedOrder.MaVanDon || normalizedOrder.ID_DH || normalizedOrder.id;
+        
         setPendingOrders((prev) => {
           // Kiểm tra xem đơn hàng có ID này đã có trong danh sách chưa
           const orderExists = prev.some(existingOrder => 
@@ -157,27 +163,31 @@ const XacNhanDonHang = () => {
           if (orderExists) {
             return prev;
           } else {
-            // Make a deep copy to ensure state changes trigger useEffect for localStorage save
-            const newOrder = JSON.parse(JSON.stringify(order));
             // Add timestamp for tracking
-            newOrder._receivedAt = new Date().toISOString();
-            return [...prev, newOrder];
+            normalizedOrder._receivedAt = new Date().toISOString();
+            return [...prev, normalizedOrder];
           }
         });
+        
         toast.info(
-          `Đơn hàng mới ${order.maVanDon || order.MaVanDon || "N/A"} vừa được tạo!`
+          `Đơn hàng mới ${normalizedOrder.maVanDon || normalizedOrder.MaVanDon || "N/A"} vừa được tạo!`
         );
       });
-      
-      // Thêm lắng nghe sự kiện notification vì nó có thể chứa dữ liệu đầy đủ hơn
+        // Thêm lắng nghe sự kiện notification vì nó có thể chứa dữ liệu đầy đủ hơn
       const unsubNotification = socketService.onNotification((notification) => {
         if (notification && notification.type === 'new_order' && notification.data) {
           console.log("Received new order notification:", notification.data);
+          
+          // Chuẩn hóa cấu trúc đơn hàng từ thông báo
+          const normalizedOrderData = normalizeOrderStructure(notification.data);
+          console.log("Dữ liệu đơn hàng từ thông báo sau khi chuẩn hóa:", normalizedOrderData);
+          
           // Kiểm tra xem đơn hàng đã tồn tại trong danh sách chưa
-          const orderKey = notification.data.maVanDon || 
-                          notification.data.MaVanDon || 
-                          notification.data.ID_DH || 
-                          notification.data.id;
+          const orderKey = normalizedOrderData.maVanDon || 
+                          normalizedOrderData.MaVanDon || 
+                          normalizedOrderData.ID_DH || 
+                          normalizedOrderData.id;
+                          
           setPendingOrders((prev) => {
             // Kiểm tra xem đơn hàng có ID này đã có trong danh sách chưa
             const orderExists = prev.some(existingOrder => 
@@ -191,13 +201,18 @@ const XacNhanDonHang = () => {
             if (orderExists) {
               return prev;
             } else {
-              // Make a deep copy to ensure state changes trigger useEffect
-              const newOrderData = JSON.parse(JSON.stringify(notification.data));
               // Add timestamp for tracking
-              newOrderData._receivedAt = new Date().toISOString();
-              return [...prev, newOrderData];
+              normalizedOrderData._receivedAt = new Date().toISOString();
+              // Thêm thông tin nguồn
+              normalizedOrderData._source = 'notification';
+              return [...prev, normalizedOrderData];
             }
           });
+          
+          // Thử hiển thị thêm thông tin để debug
+          if (!orderKey) {
+            console.warn("Không tìm thấy mã đơn hàng trong notification:", notification);
+          }
         }
       });
       
@@ -212,27 +227,125 @@ const XacNhanDonHang = () => {
       if (handlers.unsubNotification) handlers.unsubNotification();
     };
   }, [ensureSocketConnection]);
-  
+  // Hàm chuẩn hóa và sửa chữa cấu trúc đơn hàng không đúng - mở rộng để đối phó với nhiều cấu trúc dữ liệu
+  const normalizeOrderStructure = (order) => {
+    if (!order) return order;
+    
+    // Ghi log chi tiết cấu trúc đơn hàng gốc để debug
+    console.log("Cấu trúc đơn hàng gốc:", JSON.stringify(order, null, 2));
+    
+    // Deep clone để tránh tham chiếu
+    const fixedOrder = JSON.parse(JSON.stringify(order));
+    
+    // PHẦN 1: Chuẩn hoá các trường cơ bản
+    // ---------------------------------
+    
+    // Chuẩn hoá mã vận đơn - đảm bảo cả 2 format đều tồn tại
+    fixedOrder.maVanDon = fixedOrder.maVanDon || fixedOrder.MaVanDon || `AUTO-${Date.now()}`;
+    fixedOrder.MaVanDon = fixedOrder.MaVanDon || fixedOrder.maVanDon;
+    
+    // PHẦN 2: Chuẩn hoá định danh đơn hàng và khách hàng
+    // -------------------------------------------------
+    
+    // Chuẩn hoá ID đơn hàng - hợp nhất các trường khác nhau
+    fixedOrder.ID_DH = fixedOrder.ID_DH || fixedOrder.id || fixedOrder.orderId || fixedOrder.ID_DHT;
+    fixedOrder.ID_DHT = fixedOrder.ID_DHT || fixedOrder.ID_DH || fixedOrder.id || fixedOrder.orderId;
+    fixedOrder.id = fixedOrder.id || fixedOrder.ID_DH || fixedOrder.ID_DHT || fixedOrder.orderId;
+    
+    // Chuẩn hoá ID khách hàng - hợp nhất và đảm bảo tính nhất quán
+    // Tìm ID_KH từ nhiều vị trí
+    const customerId = 
+      fixedOrder.ID_KH || 
+      fixedOrder.khachHangId || 
+      fixedOrder.userId || 
+      fixedOrder.id_kh ||
+      (fixedOrder.khachHang ? (fixedOrder.khachHang.id || fixedOrder.khachHang.ID_KH) : null) ||
+      (fixedOrder.data ? (fixedOrder.data.ID_KH || fixedOrder.data.khachHangId || fixedOrder.data.userId) : null);
+    
+    if (customerId) {
+      // Đảm bảo tất cả các trường đều có chung một ID khách hàng
+      fixedOrder.ID_KH = customerId;
+      fixedOrder.khachHangId = customerId;
+      fixedOrder.userId = customerId;
+      console.log(`Tìm thấy ID khách hàng: ${customerId}`);
+    }
+    
+    // PHẦN 3: Chuẩn hoá thông tin khách hàng và người nhận
+    // ---------------------------------------------------
+    
+    // Chuẩn hoá tên khách hàng
+    const customerName = 
+      fixedOrder.TenKhachHang || 
+      fixedOrder.tenKhachHang || 
+      (fixedOrder.khachHang ? (fixedOrder.khachHang.tenKhachHang || fixedOrder.khachHang.TenKhachHang || fixedOrder.khachHang.Ten_KH) : null) ||
+      fixedOrder.Ten_KH;
+    
+    if (customerName) {
+      fixedOrder.TenKhachHang = customerName;
+      fixedOrder.tenKhachHang = customerName;
+      fixedOrder.Ten_KH = customerName;
+      console.log(`Tìm thấy tên khách hàng: ${customerName}`);
+    } else {
+      fixedOrder.TenKhachHang = "Chưa có thông tin";
+      fixedOrder.tenKhachHang = "Chưa có thông tin";
+      console.log("Không tìm thấy tên khách hàng trong đơn hàng");
+    }
+    
+    // Chuẩn hoá thông tin người nhận
+    const receiverName = 
+      fixedOrder.TenNguoiNhan || 
+      fixedOrder.tenNguoiNhan || 
+      fixedOrder.Ten_NN || 
+      fixedOrder.receiverName ||
+      (fixedOrder.nguoiNhan ? (fixedOrder.nguoiNhan.ten || fixedOrder.nguoiNhan.Ten_NN || fixedOrder.nguoiNhan.tenNguoiNhan) : null);
+    
+    if (receiverName) {
+      fixedOrder.TenNguoiNhan = receiverName;
+      fixedOrder.tenNguoiNhan = receiverName; 
+      fixedOrder.Ten_NN = receiverName;
+      fixedOrder.receiverName = receiverName;
+      console.log(`Tìm thấy tên người nhận: ${receiverName}`);
+    }
+    
+    // PHẦN 4: Thêm metadata và hoàn thiện
+    // ----------------------------------
+    
+    // Thêm các metadata hữu ích
+    fixedOrder._normalized = true;
+    fixedOrder._normalizedAt = new Date().toISOString();
+    
+    // Ghi log kết quả chuẩn hoá
+    console.log("Kết quả chuẩn hoá:", {
+      maVanDon: fixedOrder.maVanDon,
+      ID_KH: fixedOrder.ID_KH,
+      TenKhachHang: fixedOrder.TenKhachHang,
+      Ten_NN: fixedOrder.Ten_NN
+    });
+    
+    return fixedOrder;
+  };
+
   // Improved function to save the order locally when connection fails
   const saveOrderLocallyIfNeeded = (order) => {
     try {
       // Get existing saved orders
       const savedOrders = JSON.parse(localStorage.getItem('pendingConfirmations') || '[]');
       
+      // Chuẩn hóa đơn hàng trước khi so sánh
+      const normalizedOrder = normalizeOrderStructure(order);
+      
       // Add this order if not already saved
       const orderExists = savedOrders.some(o => 
-        (o.maVanDon === order.maVanDon || 
-         o.MaVanDon === order.MaVanDon ||
-         o.ID_DH === order.ID_DH ||
-         o.id === order.id)
+        (o.maVanDon === normalizedOrder.maVanDon || 
+         o.MaVanDon === normalizedOrder.MaVanDon ||
+         o.ID_DH === normalizedOrder.ID_DH ||
+         o.id === normalizedOrder.id)
       );
       
       if (!orderExists) {
-        // Deep clone to avoid reference issues
-        const orderToSave = JSON.parse(JSON.stringify(order));
         // Add timestamp
-        orderToSave._savedAt = new Date().toISOString();
-        savedOrders.push(orderToSave);
+        normalizedOrder._savedAt = new Date().toISOString();
+        savedOrders.push(normalizedOrder);
         localStorage.setItem('pendingConfirmations', JSON.stringify(savedOrders));
         // Also create a backup
         localStorage.setItem('pendingConfirmations_backup', JSON.stringify(savedOrders));
@@ -259,42 +372,93 @@ const XacNhanDonHang = () => {
         const isConnected = await ensureSocketConnection();
           // Lấy thông tin người dùng từ đơn hàng - cải thiện để tìm thông tin trong nhiều vị trí hơn
         console.log("Thông tin đơn hàng đầy đủ trước khi xác nhận:", order);        // Trích xuất ID khách hàng từ nhiều vị trí có thể có - cải tiến để phát hiện tất cả khả năng
-        console.log("Đang trích xuất thông tin khách hàng từ đơn hàng:", order);
-        
-        // Tìm ID khách hàng từ nhiều vị trí có thể có
-        let userId = order.ID_KH || 
-                    order.userId || 
-                    order.id_kh || 
-                    order.khachHangId ||
-                    (order.data && order.data.ID_KH) || 
-                    (order.data && order.data.userId);
-                    
-        // Thử tìm trong thuộc tính khachHang nếu có
-        if (!userId && order.khachHang) {
-          userId = order.khachHang.ID_KH || order.khachHang.id;
-        }
-        
-        // Nếu vẫn không tìm thấy, thử lấy từ orderData
-        if (!userId && order.orderData) {
-          userId = order.orderData.ID_KH || order.orderData.userId || order.orderData.id_kh;
-        }
-        
-        // Xử lý thông báo socket từ backend Node.js có cấu trúc khác
-        // Khi chạy server, backend gửi thông báo với cấu trúc khác
-        if (!userId && typeof order.id !== 'undefined') {
-          if (typeof order.khachHangId !== 'undefined') {
-            console.log("Đang sử dụng ID từ khachHangId trong đơn hàng:", order.khachHangId);
-            userId = order.khachHangId;
-          } else if (typeof order.ID_KH !== 'undefined') {
-            console.log("Đang sử dụng ID từ ID_KH trong đơn hàng:", order.ID_KH);
-            userId = order.ID_KH;
+        console.log("Đang trích xuất thông tin khách hàng từ đơn hàng:", order);        // NÂNG CẤP: Tìm ID khách hàng từ nhiều vị trí có thể có - thiết lập hàm tiện ích mở rộng
+        const extractUserId = (obj) => {
+          // Ghi log toàn bộ đối tượng để phân tích chi tiết
+          console.log('Đang phân tích để tìm ID khách hàng từ:', JSON.stringify(obj, null, 2));
+          
+          // Tìm trong tất cả các thuộc tính có thể chứa ID khách hàng
+          const possibleIdFields = [
+            'ID_KH', 'id_kh', 'userId', 'khachHangId', 'customerID', 'customerId', 
+            'idKhachHang', 'user_id', 'customer_id', 'UserID'
+          ];
+          
+          // 1. Tìm trực tiếp ở cấp đầu tiên
+          for (const field of possibleIdFields) {
+            if (obj[field] !== undefined && obj[field] !== null) {
+              console.log(`Tìm thấy ID khách hàng trong trường ${field}:`, obj[field]);
+              return obj[field];
+            }
           }
-        }
+          
+          // 2. Tìm trong các thuộc tính lồng nhau một cấp
+          const nestedFields = [
+            'data', 'khachHang', 'customer', 'orderData', 'info', 'donHang', 
+            'donHangData', 'orderInfo', 'customerInfo', 'metaData', 'metadata'
+          ];
+          
+          for (const nested of nestedFields) {
+            if (obj[nested] && typeof obj[nested] === 'object') {
+              for (const field of possibleIdFields) {
+                if (obj[nested][field] !== undefined && obj[nested][field] !== null) {
+                  console.log(`Tìm thấy ID khách hàng trong ${nested}.${field}:`, obj[nested][field]);
+                  return obj[nested][field];
+                }
+              }
+            }
+          }
+          
+          // 3. Tìm trong các thuộc tính lồng nhau hai cấp
+          for (const nested1 of nestedFields) {
+            if (obj[nested1] && typeof obj[nested1] === 'object') {
+              for (const nested2 of nestedFields) {
+                if (obj[nested1][nested2] && typeof obj[nested1][nested2] === 'object') {
+                  for (const field of possibleIdFields) {
+                    if (obj[nested1][nested2][field] !== undefined && obj[nested1][nested2][field] !== null) {
+                      console.log(`Tìm thấy ID khách hàng trong ${nested1}.${nested2}.${field}:`, obj[nested1][nested2][field]);
+                      return obj[nested1][nested2][field];
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          // 4. Nếu có khóa "id" và không có các khóa khác thường gặp, có thể đây là ID khách hàng
+          if (obj.id && !obj.ID_DH && !obj.ID_DHT && !obj.MaVanDon && !obj.maVanDon) {
+            console.log('Phát hiện ID có thể là ID khách hàng:', obj.id);
+            return obj.id;
+          }
+          
+          // 5. Tìm trong mảng như danh sách đơn hàng trước đó có cùng khách hàng
+          if (Array.isArray(obj.orders) || Array.isArray(obj.donHang)) {
+            const orders = obj.orders || obj.donHang || [];
+            for (const order of orders) {
+              const foundId = extractUserId(order); // Đệ quy tìm trong mỗi đơn hàng
+              if (foundId) {
+                console.log('Tìm thấy ID khách hàng từ đơn hàng trước:', foundId);
+                return foundId;
+              }
+            }
+          }
+          
+          console.log('Không tìm thấy ID khách hàng trong đối tượng');
+          return null;
+        };
+        
+        // Áp dụng hàm tiện ích để tìm kiếm ID
+        let userId = extractUserId(order);
         
         // Kiểm tra đơn hàng từ bảng tạm trong DB MySQL
         if (!userId && order.ID_DHT) {
           console.log("Đơn hàng từ bảng tạm, đang tìm khachHangId từ ID_DHT:", order.ID_DHT);
           userId = order.ID_KH; // ID_KH trong DonHangTam
+        }
+        
+        // Nếu order có chứa trường phẳng ID nhưng không có ID_KH, có thể đây là ID khách hàng
+        if (!userId && order.id && !order.ID_DH && !order.ID_DHT) {
+          console.log("Sử dụng trường id làm ID khách hàng:", order.id);
+          userId = order.id;
         }
         
         // Để debug, ghi log các trường định danh
@@ -326,14 +490,36 @@ const XacNhanDonHang = () => {
               userId = similarOrder.ID_KH;
             }
           }
-          
-          // Nếu vẫn không tìm thấy, gắn default userId để có thể tiếp tục - chỉ là giải pháp tạm thời
+            // Nếu vẫn không tìm thấy, thử các chiến lược khác
           if (!userId) {
-            console.warn("Không tìm thấy ID khách hàng trong đơn hàng, sẽ gửi notification không kèm user ID");
-            // Sử dụng userId mặc định nếu có dữ liệu từ nguồn khác
+            // Kiểm tra người nhận
             if (order.nguoiNhan && order.nguoiNhan.id) {
               console.log("Sử dụng ID người nhận thay thế:", order.nguoiNhan.id);
               userId = order.nguoiNhan.id; // Sử dụng ID người nhận thay thế
+            } 
+            // Kiểm tra theo số điện thoại
+            else if (order.SdtKhachHang || order.SdtKH || order.SDT_KH || order.SDT) {
+              // Lấy SDT để tìm kiếm
+              const phone = order.SdtKhachHang || order.SdtKH || order.SDT_KH || order.SDT;
+              console.log("Tìm kiếm theo SĐT:", phone);
+              
+              // Tìm trong các đơn hàng đã lưu
+              const cachedOrders = JSON.parse(localStorage.getItem('pendingConfirmations') || '[]');
+              const matchingOrder = cachedOrders.find(o => 
+                (o.SdtKhachHang === phone || o.SdtKH === phone || o.SDT_KH === phone || o.SDT === phone) && 
+                (o.ID_KH || o.userId || o.khachHangId)
+              );
+              
+              if (matchingOrder) {
+                userId = matchingOrder.ID_KH || matchingOrder.userId || matchingOrder.khachHangId;
+                console.log("Tìm thấy ID khách hàng qua SĐT từ cache:", userId);
+              }
+            }
+            
+            // Nếu vẫn không tìm thấy, thông báo và tiếp tục
+            if (!userId) {
+              console.warn("Không tìm thấy ID khách hàng trong đơn hàng, sẽ gửi notification không kèm user ID");
+              // Thử gửi thông báo chung cho tất cả khách hàng
             }
           }
         }
@@ -347,30 +533,113 @@ const XacNhanDonHang = () => {
         const isOnlinePayment = order.paymentMethod === 'online' || 
             order.payment_method === 'online' || 
             order.PaymentMethod === 'online' ||
-            (order.data && order.data.paymentMethod === 'online');
-        
-        // If we have a socket connection, try to send confirmation
+            (order.data && order.data.paymentMethod === 'online');        // If we have a socket connection, try to send confirmation
         let confirmationSent = false;
         if (isConnected && socketService.socket) {
-          console.log("Đang gửi xác nhận qua socket cho:", {orderId, userId, isOnlinePayment});
-          confirmationSent = socketService.sendPaymentConfirmation(orderId, userId, isOnlinePayment);
+          // Log chi tiết để debug
+          console.log("Thông tin đầy đủ của đơn hàng trước khi xác nhận:", {
+            orderId, 
+            userId, 
+            isOnlinePayment,
+            maVanDon: order.maVanDon || order.MaVanDon,
+            tenKhachHang: order.tenKhachHang || order.TenKhachHang,
+            receiverName: order.receiverName || order.Ten_NN || (order.nguoiNhan ? order.nguoiNhan.ten : null)
+          });
+            // Tạo bản sao chuẩn hóa cuối cùng của đơn hàng
+          const normalizedOrder = normalizeOrderStructure(order);
+            
+          // Lấy thông tin người nhận từ đơn hàng
+          const receiverId = order.nguoiNhan?.id;
+          const receiverPhone = order.SdtNguoiNhan || order.Sdt_NN || (order.nguoiNhan && order.nguoiNhan.sdt);
+          const receiverName = order.TenNguoiNhan || order.Ten_NN || (order.nguoiNhan && order.nguoiNhan.ten) || 'Người nhận';
           
-          // Gửi thông báo tới staff về đơn hàng mới được xác nhận
-          socketService.socket.emit('order:confirmed', {
+          // Chuẩn bị thông tin người nhận cho thông báo
+          const recipientInfo = {
+            name: receiverName,
+            phone: receiverPhone,
+            orderCode: order.maVanDon || order.MaVanDon
+          };
+          
+          // Gọi hàm xác nhận với dữ liệu đã xử lý - thêm một số trường giúp định danh
+          confirmationSent = socketService.sendPaymentConfirmation(
+            orderId, 
+            userId, 
+            isOnlinePayment,
+            recipientInfo
+          );
+
+          // Tạo dữ liệu chi tiết để gửi
+          const confirmationData = {
+            // Thông tin định danh
             orderId,
-            orderData: order,
+            ID_DHT: orderId,
+            ID_DH: orderId,
+            orderKey: order.maVanDon || order.MaVanDon || orderId,
+            
+            // Thông tin khách hàng
+            userId,
+            ID_KH: userId,
+            khachHangId: userId,
+            TenKhachHang: normalizedOrder.TenKhachHang,
+            tenKhachHang: normalizedOrder.TenKhachHang,
+            
+            // Thông tin người nhận
+            receiverId,
+            receiverPhone,
+            receiverName,
+            
+            // Chi tiết đơn hàng
+            orderData: normalizedOrder,
+            maVanDon: normalizedOrder.maVanDon,
+            MaVanDon: normalizedOrder.MaVanDon,
+            
+            // Thông tin xác nhận
             confirmedAt: new Date().toISOString(),
             confirmedBy: 'admin',
-            message: `Đơn hàng ${order.maVanDon || order.MaVanDon || orderId || "N/A"} đã được xác nhận!`
+            message: `Đơn hàng ${normalizedOrder.maVanDon || normalizedOrder.MaVanDon || orderId || "N/A"} đã được xác nhận!`
+          };
+          
+          // Gửi thêm sự kiện xác nhận riêng cho staff với thông tin đơn hàng đầy đủ
+          socketService.socket.emit('order:confirmed', confirmationData);
+          
+          // Gửi thông báo riêng cho người nhận nếu có
+          if (receiverPhone) {
+            console.log(`Gửi thông báo cho người nhận: ${receiverName} - SĐT: ${receiverPhone}`);
+            socketService.socket.emit('send_notification', {
+              to: 'sms_recipient',
+              data: {
+                type: 'order_confirmed_for_recipient',
+                phone: receiverPhone,
+                name: receiverName,
+                message: `Đơn hàng ${normalizedOrder.maVanDon || normalizedOrder.MaVanDon} đã được xác nhận và sẽ sớm được giao tới quý khách.`,
+                orderId: orderId,
+                maVanDon: normalizedOrder.maVanDon || normalizedOrder.MaVanDon,
+                timestamp: new Date().toISOString()
+              }
+            });
+          }
+          
+          // Ghi log xác nhận thành công
+          console.log("Đã gửi thông báo xác nhận đơn hàng:", {
+            success: confirmationSent,
+            orderId: orderId,
+            userId: userId,
+            maVanDon: normalizedOrder.maVanDon
           });
         }
+          // Thông tin người nhận để hiển thị trong toast
+        const hasRecipientContact = order.SdtNguoiNhan || order.Sdt_NN || (order.nguoiNhan && order.nguoiNhan.sdt);
         
         // Handle result
         if (confirmationSent) {
           if (isOnlinePayment) {
-            toast.success("Đã xác nhận thanh toán thành công và gửi thông báo cho người dùng!");
+            toast.success(`Đã xác nhận thanh toán thành công và gửi thông báo cho người dùng!${
+              hasRecipientContact ? ' Đã gửi thông báo cho người nhận.' : ''
+            }`);
           } else {
-            toast.success("Đã xác nhận đơn hàng và gửi thông báo cho người dùng!");
+            toast.success(`Đã xác nhận đơn hàng và gửi thông báo!${
+              hasRecipientContact ? ' Người nhận cũng được thông báo.' : ''
+            }`);
           }
         } else {
           // Save locally for retry if notification couldn't be sent
@@ -379,7 +648,9 @@ const XacNhanDonHang = () => {
           if (!userId) {
             toast.warning("Không thể xác định người dùng, đơn hàng được xác nhận nhưng không thể gửi thông báo!");
           } else {
-            toast.warning("Đã xác nhận đơn hàng nhưng không thể gửi thông báo cho người dùng!");
+            toast.warning(`Đã xác nhận đơn hàng nhưng gặp vấn đề khi gửi thông báo!${
+              hasRecipientContact ? ' Cần kiểm tra thông báo cho người nhận.' : ''
+            }`);
           }
         }
         
@@ -392,61 +663,63 @@ const XacNhanDonHang = () => {
     }
   };
 
-  return (
-    <div className="pending-orders-alert">
-      <h3>Đơn hàng mới chờ xác nhận:</h3>
+  return (    <div className="pending-orders-alert">
+      <div className="header-container">
+        <h3>Đơn hàng mới chờ xác nhận: <span className="order-count">{pendingOrders.length}</span></h3>
+        <div className="pending-instructions">Hiển thị mã vận đơn và ID khách hàng</div>
+      </div>
+      
       {pendingOrders.length === 0 ? (
-        <div>Không có đơn hàng chờ xác nhận.</div>
+        <div className="no-orders">Không có đơn hàng chờ xác nhận.</div>
       ) : (
-        <ul>
-          {pendingOrders.map((order, idx) => (
-            <li
+        <ul className="orders-list">
+          {pendingOrders.map((order, idx) => (<li
               key={`order-${order.maVanDon || order.MaVanDon || idx}-${idx}`}
               className="pending-order-item"
             >
               <span>
-                Mã vận đơn: <b>{order.maVanDon || order.MaVanDon || "N/A"}</b> - Tên Người Nhận: <b>
-                  {/* Ưu tiên receiverName, sau đó tenNguoiNhan, TenNguoiNhan, Ten_NN, tenNN, etc */}
-                  {order.receiverName ||
-                    "N/A"}                </b> - Khách Hàng: <b>
-                  {/* Thông tin khách hàng */}
-                  {order.tenKhachHang ||
-                    order.TenKhachHang || 
-                    (order.khachHang && order.khachHang.tenKhachHang) || 
-                    (order.khachHang && order.khachHang.TenKhachHang) ||
-                    (order.khachHang && order.khachHang.Ten_KH) ||
-                    // Thêm tìm kiếm trường để phù hợp với dữ liệu socket từ backend Node.js
-                    order.Ten_KH ||
-                    "N/A"}
-                </b>
-                <br />
-                Phương thức thanh toán: <b>
-                  {/* Kiểm tra chi tiết tất cả các trường có thể chứa thông tin thanh toán */}
-                  {order.paymentMethod === 'cash' ||  
-                   (order.data && order.data.paymentMethod === 'cash') ||
-                   order.paymentMethod === 1 
-                    ? 'Tiền mặt khi nhận hàng'
-                    : order.paymentMethod === 'online' || 
-                      
-                      (order.data && order.data.paymentMethod === 'online') ||
-                      order.paymentMethod === 2 || 
-                      order.paymentMethod === 'momo'
-                    ? 'Chuyển khoản/MoMo'
-                    : 'Chưa xác định'}
-                </b>
-                {/* In ra paymentMethod để debug */}
-                {console.log("Thông tin đơn hàng đầy đủ:", order)}
+                <div className="simplified-order-summary">
+                  <div className="main-info">
+                    <span className="order-code">
+                      <i className="fas fa-barcode"></i> 
+                      <b>{order.maVanDon || order.MaVanDon || "N/A"}</b>
+                    </span>
+                    
+                    <span className="customer-id-badge">
+                      <i className="fas fa-user"></i> ID: {order.ID_KH || "Không xác định"}
+                    </span>
+                  </div>
+
+                  <div className="order-actions">
+                    <button
+                      title="Xem thêm thông tin"
+                      className="info-button"
+                      onClick={() => {
+                        alert(`Thông tin đầy đủ:
+- Mã vận đơn: ${order.maVanDon || order.MaVanDon || "N/A"}
+- ID đơn: ${order.ID_DHT || order.ID_DH || order.id || "N/A"}
+- Khách hàng: ${order.TenKhachHang || order.tenKhachHang || "N/A"}
+- Người nhận: ${order.TenNguoiNhan || order.Ten_NN || "N/A"}
+- SĐT: ${order.SdtNguoiNhan || order.Sdt_NN || "N/A"}
+- Thanh toán: ${order.paymentMethod === 'online' ? 'Chuyển khoản' : 'Tiền mặt'}`);
+                      }}
+                    >
+                      <i className="fas fa-info-circle"></i>
+                    </button>
+
+                    <button
+                      className="confirm-btn"
+                      onClick={() => handleConfirmPendingOrder(order)}
+                    >
+                      Xác nhận
+                    </button>
+                  </div>
+                </div>                {/* Styles moved to imported CSS or inline styles */}
               </span>
-              <button
-                className="confirm-pending-btn"
-                onClick={() => handleConfirmPendingOrder(order)}
-              >
-                Xác nhận
-              </button>
             </li>
-          ))}
-        </ul>
+          ))}        </ul>
       )}
+        {/* Styles moved to imported CSS */}
     </div>
   );
 };

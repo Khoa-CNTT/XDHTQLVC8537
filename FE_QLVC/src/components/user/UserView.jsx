@@ -448,7 +448,7 @@ const UserView = ({
                 </div>            </form>
             
             {/* Thêm console log để debug */}
-            {console.log("Current state:", { showPaymentForm, paymentMethod, waitingAdminConfirm })}
+            {/* {console.log("Current state:", { showPaymentForm, paymentMethod, waitingAdminConfirm })} */}
               {/* THÔNG TIN DEBUG - Xóa trong phiên bản production */}
             {showPaymentForm && (
                 <div style={{ padding: '5px', backgroundColor: '#f0f0f0', marginTop: '10px', border: '1px solid #ddd', borderRadius: '5px', display: 'none' }}>

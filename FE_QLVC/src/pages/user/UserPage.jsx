@@ -14,24 +14,21 @@ import UserNotification from '../../components/user/UserNotification';
 
 import './UserPage.css';
 
-const UserPage = () => {    
+const UserPage = () => {
     const navigate = useNavigate();
     const { auth, logout } = useAuth();
-    const [activeItem, setActiveItem] = useState('main');    
-    const [user, setUser] = useState(null); // Holds detailed user info (KH or NV) + base info
-    // const [employees, setEmployees] = useState([]);
-    // const [orders, setOrders] = useState([]); // Staff orders
-    // const [pendingOrders, setPendingOrders] = useState([]); // For pending orders
+    const [activeItem, setActiveItem] = useState('main');
+    const [user, setUser] = useState(null);
     const [userOrders, setUserOrders] = useState([]); // Customer orders
     const [error, setError] = useState(null);
-    const [loading, setLoading] = useState(true); // Start loading true
-    const [showPaymentForm, setShowPaymentForm] = useState(false);    
+    const [loading, setLoading] = useState(true);
+    const [showPaymentForm, setShowPaymentForm] = useState(false);
     const [createdOrder, setCreatedOrder] = useState(null);
-    // const [imageUploading, setImageUploading] = useState(false);
-    // const [imageError, setImageError] = useState(null);    
     const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    
     const [order, setOrder] = useState({
         ID_NV: '',
         receiverName: '',
@@ -44,27 +41,25 @@ const UserPage = () => {
         codAmount: 0,
         notes: '',
         productImage: null,
-        quantity: 1 // Default quantity is 1
+        quantity: 1
     });
     const [productImagePreview, setProductImagePreview] = useState(null);
 
-    // Prevent repeated submissions when sending an order (both cash and online)
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    // Ngăn submit lặp khi đang gửi đơn hàng (cả cash và online)
+    const [isSubmitting, setIsSubmitting] = useState(false);    // Memoize fetchUserData to prevent recreation on every render
+    const fetchUserData = useCallback(async (userId, userRole) => {
+        setLoading(true);
+        setError(null); // Clear previous errors
+        try {
+            // Fetch role-specific details (includes Email, SDT from backend now)
+            let specificUserData = null;
+            if (userRole === 'user') {
+                specificUserData = await authService.getKhachHangByTK(userId);
+            }
 
-  // Memoize fetchUserData to prevent recreation on every render
-  const fetchUserData = useCallback(async (userId, userRole) => {
-    setLoading(true);
-    setError(null); // Clear previous errors
-    try {
-      // Fetch role-specific details (includes Email, SDT from backend now)
-      let specificUserData = null;
-      if (userRole === "user") {
-        specificUserData = await authService.getKhachHangByTK(userId);
-      }
-
-      if (!specificUserData) {
-        throw new Error("Không thể tải thông tin chi tiết người dùng.");
-      }
+            if (!specificUserData) {
+                throw new Error('Không thể tải thông tin chi tiết người dùng.');
+            }
 
             // Combine base auth info with specific details
             const combinedUserData = {
@@ -101,9 +96,7 @@ const UserPage = () => {
         } finally {
             setLoading(false);
         }
-    }, []);    
-
-    useEffect(() => {
+    }, []);    useEffect(() => {
         // Check auth state from context
         if (!auth.isLoading) {
             if (!auth.isAuthenticated || !auth.userId) {
@@ -113,9 +106,7 @@ const UserPage = () => {
                 fetchUserData(auth.userId, auth.userRole);
             }
         }
-    }, [auth.isLoading, auth.isAuthenticated, auth.userId, auth.userRole, navigate, fetchUserData]);    
-
-    // Fetch notifications for the user
+    }, [auth.isLoading, auth.isAuthenticated, auth.userId, auth.userRole, navigate, fetchUserData]);    // Fetch notifications for the user
     const fetchUserNotifications = useCallback(async (userId) => {
         try {
             if (!userId) return;
@@ -155,6 +146,27 @@ const UserPage = () => {
             }
         });
         
+        // Add listener for order:confirmed events to handle payment confirmations
+        const unsubOrderConfirmed = socketService.onOrderConfirmed((data) => {
+            console.log('Received order confirmation:', data);
+            
+            // Ensure this notification is for the current user
+            if (data.userId == user.ID_KH || !data.userId) {
+                const orderCode = data.orderIdAlternatives?.maVanDon || 'N/A';
+                const message = data.isOnlinePayment 
+                    ? `Thanh toán cho đơn hàng ${orderCode} đã được xác nhận.`
+                    : `Đơn hàng ${orderCode} đã được xác nhận.`;
+                    
+                toast.success(message, {
+                    icon: "✅",
+                    autoClose: 6000
+                });
+                
+                // Refresh notifications
+                fetchUserNotifications(user.ID_KH);
+            }
+        });
+        
         // Initial fetch of notifications
         if (user.ID_KH) {
             fetchUserNotifications(user.ID_KH);
@@ -165,6 +177,7 @@ const UserPage = () => {
             unsubOrderAccepted();
             unsubOrderStatusChanged();
             unsubNotification();
+            unsubOrderConfirmed();
         };
     }, [auth.isAuthenticated, user, fetchUserNotifications]);
     
@@ -205,51 +218,40 @@ const UserPage = () => {
             }
         });
 
-    // Đăng ký lắng nghe sự kiện thông báo chung (có thể dùng cho xác nhận chuyển khoản)
-    const unsubNotification = socketService.onNotification((data) => {
-      if (
-        data &&
-        data.type === "order_accepted" &&
-        user.Role === "user" &&
-        user.ID_KH
-      ) {
-        // Đơn hàng online đã được admin xác nhận chuyển khoản
-        orderService
-          .getOrdersByCustomer(user.ID_KH)
-          .then((updatedOrders) => {
-            setUserOrders(updatedOrders || []);
-            toast.success(
-              "Admin đã xác nhận chuyển khoản, đơn hàng của bạn đã được tiếp nhận!"
-            );
-          })
-          .catch((error) =>
-            console.error("Lỗi khi cập nhật danh sách đơn hàng:", error)
-          );
-        // Đóng modal chờ xác nhận nếu có
-        if (window.setWaitingAdminConfirm) {
-          window.setWaitingAdminConfirm(false);
-        }
-      }
-    });
+        // Đăng ký lắng nghe sự kiện thông báo chung (có thể dùng cho xác nhận chuyển khoản)
+        const unsubNotification = socketService.onNotification((data) => {
+            if (data && data.type === 'order_accepted' && user.Role === 'user' && user.ID_KH) {
+                // Đơn hàng online đã được admin xác nhận chuyển khoản
+                orderService.getOrdersByCustomer(user.ID_KH)
+                    .then(updatedOrders => {
+                        setUserOrders(updatedOrders || []);
+                        toast.success('Admin đã xác nhận chuyển khoản, đơn hàng của bạn đã được tiếp nhận!');
+                    })
+                    .catch(error => console.error('Lỗi khi cập nhật danh sách đơn hàng:', error));
+                // Đóng modal chờ xác nhận nếu có
+                if (window.setWaitingAdminConfirm) {
+                    window.setWaitingAdminConfirm(false);
+                }
+            }
+        });
+        
+        // Hủy đăng ký các lắng nghe khi component unmount
+        return () => {
+            unsubOrderAccepted();
+            unsubOrderStatusChanged();
+            unsubNotification();
+        };
+    }, [auth.isAuthenticated, user]);
 
-    // Hủy đăng ký các lắng nghe khi component unmount
-    return () => {
-      unsubOrderAccepted();
-      unsubOrderStatusChanged();
-      unsubNotification();
+    const handleItemClick = (item) => {
+        setActiveItem(item);
     };
-  }, [auth.isAuthenticated, user]);
-
-  const handleItemClick = (item) => {
-    setActiveItem(item);
-  };
 
     // All the existing handler functions remain the same
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setOrder((prev) => ({ ...prev, [name]: value }));
     };
-
     const handleCharacteristicsChange = (e) => {
         const { value, checked } = e.target;
         setOrder(prev => {
@@ -269,7 +271,7 @@ const UserPage = () => {
         });
     };
     
-    // Hàm xử lý tải lên ảnh sản phẩm
+    // Rest of handler functions
     const handleProductImageUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -319,12 +321,12 @@ const UserPage = () => {
         return baseFee + additionalFee;
     };
 
-  // Rest of the handlers kept the same...
-  // Khi đóng modal thanh toán, reset cả createdOrder và showPaymentForm
-  const handleClosePaymentForm = () => {
-    setShowPaymentForm(false);
-    setCreatedOrder(null);
-  };
+    // Rest of the handlers kept the same...
+    // Khi đóng modal thanh toán, reset cả createdOrder và showPaymentForm
+    const handleClosePaymentForm = () => {
+        setShowPaymentForm(false);
+        setCreatedOrder(null);
+    };
 
     const handlePayment = async (paymentMethod) => {
         // Existing handlePayment code
@@ -349,20 +351,18 @@ const UserPage = () => {
         } finally {
             setLoading(false);
         }
-    };    
-
-    // Xử lý nhất quán cho tất cả các phương thức thanh toán
+    };    // Xử lý nhất quán cho tất cả các phương thức thanh toán
     const handleOrderSubmit = async (e, options = {}) => {
         if (isSubmitting) return;
         setIsSubmitting(true);
         if (e) e.preventDefault();
 
-    // Xử lý đóng modal nếu được yêu cầu
-    if (options.closeModal) {
-      setShowPaymentForm(false);
-      setIsSubmitting(false);
-      return;
-    }
+        // Xử lý đóng modal nếu được yêu cầu
+        if (options.closeModal) {
+            setShowPaymentForm(false);
+            setIsSubmitting(false);
+            return;
+        }
 
         if (!user || !user.ID_KH) {
             setError('Không thể tạo đơn hàng: thiếu thông tin khách hàng.');
@@ -371,7 +371,6 @@ const UserPage = () => {
         }
         setError(null);
         setLoading(true);
-        
         try {
             // Xác định ID tính chất hàng hóa dựa trên tính chất được chọn
             let ID_TCHH = 0;
@@ -388,7 +387,6 @@ const UserPage = () => {
                 soLuong: parseInt(order.quantity) || 1,
                 image: 'default.jpg'
             };
-
             const orderData = {
                 khachHangId: user.ID_KH,
                 hangHoa: productData,
@@ -404,7 +402,6 @@ const UserPage = () => {
                 trangThaiDonHang: 'Đang chờ xử lý',
                 paymentMethod: options.paymentMethod || 'cash'
             };
-
             if (order.productCharacteristics && order.productCharacteristics.length > 0) {
                 const tinhChatNames = {
                     '1': 'Giá trị cao',
@@ -414,13 +411,11 @@ const UserPage = () => {
                     '5': 'Chất lỏng',
                     '6': 'Từ tính, Pin'
                 };
-                
                 const tinhChatDescriptions = order.productCharacteristics
                     .map(id => tinhChatNames[id] || `Tính chất ${id}`)
                     .join(', ');
                 orderData.ghiChu += ' | Tính chất: ' + tinhChatDescriptions;
             }
-            
             // Gửi đơn hàng lên server
             const response = await orderService.createOrder(orderData);
             // Reset form sau khi tạo đơn thành công
@@ -460,9 +455,7 @@ const UserPage = () => {
             setLoading(false);
             setIsSubmitting(false);
         }
-    };    
-
-    const handleLogout = () => {
+    };    const handleLogout = () => {
         logout();
     };
 
@@ -489,74 +482,62 @@ const UserPage = () => {
         }
     };
 
-  // Loading and Error States
-  if (loading) {
-    return <div className="loading-container">Đang tải dữ liệu trang...</div>;
-  }
+    // Loading and Error States
+    if (loading) {
+        return <div className="loading-container">Đang tải dữ liệu trang...</div>;
+    }
 
-  // Render based on fetched user data
-  return (
-    <div className="user-page-container">
-      {/* Sidebar */}
-      <aside className="user-sidebar">
-        <nav className="user-sidebar-nav">
-          <div
-            className={`user-sidebar-item ${
-              activeItem === "main" ? "active" : ""
-            }`}
-            onClick={() => handleItemClick("main")}
-          >
-            <span className="user-sidebar-icon">🏠</span>
-            Trang chính
-          </div>
-          <div
-            className={`user-sidebar-item ${
-              activeItem === "orders" ? "active" : ""
-            }`}
-            onClick={() => handleItemClick("orders")}
-          >
-            <span className="user-sidebar-icon">📦</span>
-            Lịch sử đơn hàng
-          </div>
-          <div
-            className={`user-sidebar-item ${
-              activeItem === "profile" ? "active" : ""
-            }`}
-            onClick={() => handleItemClick("profile")}
-          >
-            <span className="user-sidebar-icon">👤</span>
-            Hồ sơ
-          </div>
-          <div
-            className={`user-sidebar-item ${
-              activeItem === "settings" ? "active" : ""
-            }`}
-            onClick={() => handleItemClick("settings")}
-          >
-            <span className="user-sidebar-icon">⚙️</span>
-            Cài đặt
-          </div>
-          <div
-            className={`user-sidebar-item ${
-              activeItem === "logout" ? "active" : ""
-            }`}
-            onClick={handleLogout}
-          >
-            <span className="user-sidebar-icon">🚪</span>
-            Đăng xuất
-          </div>
-        </nav>
-      </aside>
+    // Render based on fetched user data
+    return (
+        <div className="user-page-container">
+            {/* Sidebar */}
+            <aside className="user-sidebar">
+                <nav className="user-sidebar-nav">
+                    <div
+                        className={`user-sidebar-item ${activeItem === 'main' ? 'active' : ''}`}
+                        onClick={() => handleItemClick('main')}
+                    >
+                        <span className="user-sidebar-icon">🏠</span>
+                        Trang chính
+                    </div>
+                    <div
+                        className={`user-sidebar-item ${activeItem === 'orders' ? 'active' : ''}`}
+                        onClick={() => handleItemClick('orders')}
+                    >
+                        <span className="user-sidebar-icon">📦</span>
+                        Lịch sử đơn hàng
+                    </div>
+                    <div
+                        className={`user-sidebar-item ${activeItem === 'profile' ? 'active' : ''}`}
+                        onClick={() => handleItemClick('profile')}
+                    >
+                        <span className="user-sidebar-icon">👤</span>
+                        Hồ sơ
+                    </div>
+                    <div
+                        className={`user-sidebar-item ${activeItem === 'settings' ? 'active' : ''}`}
+                        onClick={() => handleItemClick('settings')}
+                    >
+                        <span className="user-sidebar-icon">⚙️</span>
+                        Cài đặt
+                    </div>
+                    <div
+                        className={`user-sidebar-item ${activeItem === 'logout' ? 'active' : ''}`}
+                        onClick={handleLogout}
+                    >
+                        <span className="user-sidebar-icon">🚪</span>
+                        Đăng xuất
+                    </div>
+                </nav>
+            </aside>
 
-            {/* Main content */}            
-            <div className="flex-1">
+            {/* Main content */}            <div className="flex-1">
                 <header className="user-header">
                     <div className="user-header-content">
                         <h1 className="user-title">
                             Trang Người Dùng
                         </h1>
-                        <div className="user-header-right">                            
-                            {/* Notification bell */}
+                        <div className="user-header-right">                            {/* Notification bell */}
                             <button
                                 className="notification-bell"
                                 onClick={handleNotificationClick}
@@ -578,10 +559,7 @@ const UserPage = () => {
                                         </span>
                                     )}
                                 </div>
-                                <span className="notification-title">Thông báo</span>
-                            </button>                            
-
-                            {user && (
+                                <span className="notification-title">Thông báo</span></button>                            {user && (
                                 <div className="user-info">
                                     <p className="user-greeting">
                                         Xin chào, {user.HoTen || 'Người dùng'}
@@ -656,8 +634,7 @@ const UserPage = () => {
                     {activeItem === 'settings' && (
                         <div className="order-form-container">
                             <UserSetting user={user} userOrders={userOrders} />
-                        </div>
-                    )}
+                        </div>                    )}
                 </main>
             </div>
             
@@ -671,4 +648,5 @@ const UserPage = () => {
         </div>
     );
 };
+
 export default UserPage;

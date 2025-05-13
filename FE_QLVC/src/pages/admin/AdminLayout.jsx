@@ -45,8 +45,7 @@ const MENU_STRUCTURE = [
       { id: "pending-orders", name: "Đơn hàng cần xử lý", icon: ArchiveBoxIcon, path: "/admin/pending" },
       { id: "users", name: "Quản lý tài khoản", icon: UsersIcon, path: "/admin/users" },
     ],
-  },  
-  {
+  },  {
     id: "reports",
     name: "Báo cáo thống kê",
     icon: DocumentChartBarIcon,
@@ -57,15 +56,7 @@ const MENU_STRUCTURE = [
       { id: "notification-management", name: "Quản lý thông báo", icon: BellIcon, path: "/admin/reports/notifications" },
     ],
   },
-  {
-    id: "settings",
-    name: "Cài đặt tài khoản",
-    icon: Cog6ToothIcon,
-    subItems: [
-      { id: "profile", name: "Quản lý thông tin cá nhân", icon: UserCircleIcon, path: "/admin/settings/profile" },
-      { id: "change-password", name: "Đổi mật khẩu", icon: KeyIcon, path: "/admin/settings/password" },
-    ],  
-  },
+ 
 ];
 
 // PendingOrders component (đặt TRƯỚC CONTENT_MAP)
@@ -147,9 +138,7 @@ export const AdminLayout = () => {
   });
   const navigate = useNavigate();
   const location = useLocation();
-  const { auth, logout } = useAuth(); // Get logout function from auth context
-  
-  // Fetch notifications
+  const { auth, logout } = useAuth(); // Get logout function from auth context  // Fetch notifications
   useEffect(() => {
     const fetchNotifications = async () => {
       if (auth && auth.user && auth.user.id) {
@@ -195,7 +184,6 @@ export const AdminLayout = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-  
   // Save collapsed state to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('admin-sidebar-collapsed', JSON.stringify(isCollapsed));
@@ -245,15 +233,13 @@ export const AdminLayout = () => {
     navigate(item.path);
     setIsMobileMenuOpen(false);
   };
-  
   const handleLogout = () => {
     // Call the logout function from auth context
     logout();
     // Navigate to login page
     navigate("/login", { replace: true });
   };
-  
-  const handleMarkAllAsRead = async () => {
+    const handleMarkAllAsRead = async () => {
     if (auth && auth.user && auth.user.id) {
       try {
         await notificationService.markUserNotificationsAsRead(auth.user.id);
@@ -294,7 +280,6 @@ export const AdminLayout = () => {
       navigate(`/admin/orders?id=${notification.ID_DH}`);
     }
   };
-  
   // Component tái sử dụng cho sub-item
   const SidebarSubItem = ({ item }) => (
     <button
@@ -334,8 +319,7 @@ export const AdminLayout = () => {
 
   return (
     <div className="admin-layout-container">
-      {/* Header */}
-      <header className="admin-header-fixed">
+      {/* Header */}      <header className="admin-header-fixed">
         <div className="admin-header-content">
           <div className="admin-header-left">
             <button
@@ -346,8 +330,7 @@ export const AdminLayout = () => {
               {isSidebarHidden ? <Bars3Icon className="icon-base" /> : <XMarkIcon className="icon-base" />}
             </button>
           </div>
-          <div className="admin-header-right">
-            <div className="search-container">
+          <div className="admin-header-right">            <div className="search-container">
               <input
                 type="text"
                 placeholder="Tra cứu đơn hàng"
@@ -364,8 +347,7 @@ export const AdminLayout = () => {
                 {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
               </button>
               {isNotificationOpen && (
-                <div className="notification-dropdown">
-                  <div className="notification-dropdown-header">
+                <div className="notification-dropdown">                  <div className="notification-dropdown-header">
                     <span>Thông báo của bạn</span>
                     <div className="notification-header-actions">
                       {unreadCount > 0 && (
@@ -391,8 +373,7 @@ export const AdminLayout = () => {
                   <div className="notification-dropdown-list">
                     {notifications.length === 0 ? (
                       <div className="no-notifications">Không có thông báo</div>
-                    ) : (
-                      notifications.slice(0, 5).map((noti, idx) => (
+                    ) : (                      notifications.slice(0, 5).map((noti, idx) => (
                         <div 
                           key={noti.ID_TB || idx} 
                           className={`notification-item ${noti.DaDoc === 0 ? 'unread' : ''}`}
@@ -431,9 +412,7 @@ export const AdminLayout = () => {
       <div
         className={`mobile-overlay ${isMobileMenuOpen ? "visible" : ""}`}
         onClick={() => setIsMobileMenuOpen(false)}
-      />
-      
-      {/* Floating toggle button for hidden sidebar */}
+      />      {/* Floating toggle button for hidden sidebar */}
       <button
         className="floating-sidebar-toggle"
         onClick={() => setIsSidebarHidden(false)}
@@ -469,9 +448,7 @@ export const AdminLayout = () => {
             <span>Đăng xuất</span>
           </button>
         </nav>
-      </aside>
-      
-      {/* Main Content */}
+      </aside>      {/* Main Content */}
       <main className={`admin-main-content ${isCollapsed ? "sidebar-collapsed" : ""} ${isSidebarHidden ? "sidebar-hidden" : ""}`}>
         <div className="main-content-inner">
           <ActiveContent />

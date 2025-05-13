@@ -96,7 +96,7 @@ const StaffPage = () => {
         try {
             const noti = await notificationService.getStaffNotifications(staffId);
             // Debug log để kiểm tra dữ liệu trả về từ API
-            console.log('API notificationService.getStaffNotifications:', noti);
+            // console.log('API notificationService.getStaffNotifications:', noti);
             // Nếu trả về có .data là mảng thì lấy .data, nếu không thì lấy trực tiếp
             const notificationsArr = Array.isArray(noti?.data) ? noti.data : (Array.isArray(noti) ? noti : []);
             setNotifications(notificationsArr);
@@ -659,7 +659,8 @@ const StaffPage = () => {
                                                     <td>
                                                         {order.NgayTaoDon ? 
                                                             new Date(order.NgayTaoDon).toLocaleDateString('vi-VN') : 'N/A'}
-                                                    </td>                                                    <td className="order-actions">
+                                                    </td>
+                                                    <td className="order-actions">
                                                         <button 
                                                             className="details-btn" 
                                                             title="Xem chi tiết đơn hàng"

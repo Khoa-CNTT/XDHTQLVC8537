@@ -9,7 +9,10 @@ const connection = mysql.createPool({
     database: process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10000,
-    queueLimit: 0
+    queueLimit: 0,
+    timezone: '+07:00', // Set timezone to UTC+7 for Vietnam time
+    // Thêm cấu hình có độ ưu tiên cao hơn để đảm bảo múi giờ đúng
+    connectionInitSql: "SET time_zone='+07:00';"
 })
 
 module.exports = {

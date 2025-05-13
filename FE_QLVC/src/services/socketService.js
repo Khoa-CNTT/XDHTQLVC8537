@@ -200,9 +200,8 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
     }
-  }
-  // Gửi thông báo xác nhận thanh toán thành công
-  sendPaymentConfirmation(orderId, userId, isOnlinePayment = false) {
+  }  // Gửi thông báo xác nhận thanh toán thành công
+  sendPaymentConfirmation(orderId, userId, isOnlinePayment = false, recipientInfo = null) {
     // Enhanced validation
     if (!orderId) {
       console.error("Cannot send payment confirmation: Missing orderId");
@@ -222,28 +221,55 @@ class SocketService {
       timestamp: new Date().toISOString(),
       data: { orderId, isOnlinePayment }
     };
-    
-    // Có userId thì gửi thông báo đến người dùng cụ thể, không có thì chỉ gửi thông báo chung
+      // Có userId thì gửi thông báo đến người dùng cụ thể, không có thì chỉ gửi thông báo chung
     if (!userId) {
-      console.warn("Missing userId for notification - will only send global confirmation");
+      console.warn("Missing userId for notification - will send broadcast confirmation");
     }
     
     if (this.socket && this.socket.connected) {
       try {
+        if (userId) {
+          // Gửi thông báo tới khách hàng cụ thể
+          this.socket.emit('send_notification', {
+            to: `customer_${userId}`,
+            data: eventData
+          });
+          console.log(`Đã gửi thông báo tới customer_${userId}`);
+        } else {
+          // Gửi thông báo broadcast nếu không có userId
+          this.socket.emit('send_notification', {
+            to: 'customers', // Room chung cho tất cả khách hàng
+            data: {
+              ...eventData,
+              broadcast: true // Đánh dấu là thông báo chung
+            }
+          });
+          console.log('Đã gửi thông báo broadcast tới tất cả khách hàng');
+        }
         
-        // Gửi thông báo tới khách hàng cụ thể
-        this.socket.emit('send_notification', {
-          to: `customer_${userId}`,
-          data: eventData
-        });
-        
-        // Also emit the confirmation event
+        // Nếu có thông tin người nhận, gửi thêm thông báo cho họ
+        if (recipientInfo && recipientInfo.phone) {
+          this.socket.emit('send_sms_notification', {
+            phone: recipientInfo.phone,
+            name: recipientInfo.name || 'Quý khách',
+            message: `Đơn hàng ${recipientInfo.orderCode || ''} đã được xác nhận và sẽ sớm được giao tới quý khách.`,
+            orderId: orderId
+          });
+          
+          console.log(`Đã gửi thông báo SMS tới người nhận: ${recipientInfo.phone}`);
+        }
+          // Also emit the confirmation event with improved data
         this.socket.emit('order:confirmed', {
           orderId,
-          userId,
+          userId: userId || null, // Explicitly set null if missing
           isOnlinePayment,
           confirmedAt: new Date().toISOString(),
-          confirmedBy: 'admin'
+          confirmedBy: 'admin',
+          // Include additional orderId formats to help client-side matching
+          orderIdAlternatives: {
+            maVanDon: typeof orderId === 'string' ? orderId : null,
+            id: typeof orderId === 'number' ? orderId : null
+          }
         });
         
         console.log(`Notification sent to customer_${userId} about order ${orderId}`);

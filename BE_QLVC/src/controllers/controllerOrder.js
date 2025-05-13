@@ -297,47 +297,132 @@ exports.createOrder = async (req, res, next) => {
           'Đơn hàng mới đã được tạo và đang chờ nhân viên xác nhận',
           new Date()
         ]
-      );      await conn.commit();
-
-      // Lấy tên người nhận để gửi lên socket cho admin
-      let receiverName = '';
+      );      await conn.commit();      // Lấy thông tin đầy đủ về người nhận
+      let receiverData = null;
       try {
-        const [nguoiNhanRows] = await conn.execute('SELECT Ten_NN FROM NguoiNhan WHERE ID_NN = ?', [nguoiNhanId]);
-        receiverName = nguoiNhanRows && nguoiNhanRows[0] ? nguoiNhanRows[0].Ten_NN : '';
+        const [nguoiNhanRows] = await conn.execute('SELECT * FROM NguoiNhan WHERE ID_NN = ?', [nguoiNhanId]);
+        receiverData = nguoiNhanRows && nguoiNhanRows[0] ? nguoiNhanRows[0] : null;
       } catch (e) {
-        receiverName = '';
+        console.error('Lỗi khi truy vấn thông tin người nhận:', e);
       }
       
-      // Lấy thông tin khách hàng
-      let tenKhachHang = '';
+      // Lấy thông tin đầy đủ về khách hàng, bao gồm cả thông tin tài khoản để có email/sdt
+      let customerData = null;
       try {
-        const [khachHangRows] = await conn.execute('SELECT Ten_KH FROM KhachHang WHERE ID_KH = ?', [khachHangId]);
-        tenKhachHang = khachHangRows && khachHangRows[0] ? khachHangRows[0].Ten_KH : '';
+        const [khachHangRows] = await conn.execute(`
+          SELECT kh.*, tk.Email, tk.SDT, tk.Username 
+          FROM KhachHang kh 
+          JOIN TaiKhoan tk ON kh.ID_TK = tk.ID_TK 
+          WHERE kh.ID_KH = ?
+        `, [khachHangId]);
+        customerData = khachHangRows && khachHangRows[0] ? khachHangRows[0] : null;
       } catch (e) {
-        tenKhachHang = '';
+        console.error('Lỗi khi truy vấn thông tin khách hàng:', e);
+      }
+      
+      // Lấy thông tin đầy đủ về hàng hóa
+      let productData = null;
+      try {
+        const [hangHoaRows] = await conn.execute(`
+          SELECT hh.*, lhh.TenLoaiHH 
+          FROM HangHoa hh 
+          LEFT JOIN LoaiHH lhh ON hh.ID_LHH = lhh.ID_LHH 
+          WHERE hh.ID_HH = ?
+        `, [finalHangHoaId]);
+        productData = hangHoaRows && hangHoaRows[0] ? hangHoaRows[0] : null;
+      } catch (e) {
+        console.error('Lỗi khi truy vấn thông tin hàng hóa:', e);
       }
 
       // Lấy phương thức thanh toán từ đơn hàng tạm (nếu có)
       let paymentMethodValue = paymentMethod || 'cash'; // Mặc định là tiền mặt
 
-      // Chuẩn bị đầy đủ thông tin để gửi qua socket
+      // Chuẩn bị đầy đủ thông tin để gửi qua socket - bao gồm tất cả dữ liệu có thể sử dụng
       const orderData = {
+        // Thông tin định danh đơn hàng
         id: orderId,
+        ID_DHT: orderId,
         maVanDon,
+        MaVanDon: maVanDon,
+        
+        // Thông tin khách hàng
         khachHangId,
+        ID_KH: khachHangId,
+        userId: khachHangId, // Thêm trường này để frontend dễ dàng phát hiện
+        TenKhachHang: customerData ? customerData.Ten_KH : '',
+        tenKhachHang: customerData ? customerData.Ten_KH : '',
+        Ten_KH: customerData ? customerData.Ten_KH : '',
+        
+        // Email và SĐT khách hàng từ TaiKhoan
+        SdtKhachHang: customerData ? customerData.SDT : '',
+        SDT_KH: customerData ? customerData.SDT : '',
+        EmailKH: customerData ? customerData.Email : '',
+        
+        // Thông tin người nhận
+        receiverName: receiverData ? receiverData.Ten_NN : '',
+        tenNguoiNhan: receiverData ? receiverData.Ten_NN : '',
+        Ten_NN: receiverData ? receiverData.Ten_NN : '',
+        SdtNguoiNhan: receiverData ? receiverData.SDT : '',
+        Sdt_NN: receiverData ? receiverData.SDT : '',
+        DiaChiNN: receiverData ? receiverData.DiaChi : '',
+        DiaChi_NN: receiverData ? receiverData.DiaChi : '',
+        
+        // Thông tin thanh toán
         paymentMethod: paymentMethodValue,
-        receiverName, // Thêm trường này để FE admin hiển thị
-        tenKhachHang, // Thông tin khách hàng
-        nguoiNhan: { // Thông tin người nhận đầy đủ
+        TienThuHo: tienThuHo || 0,
+        PhiGiaoHang: phiGiaoHang || 0,
+        
+        // Thông tin thời gian
+        NgayTaoDon: ngayTaoDon,
+        NgayGiaoDuKien: ngayGiaoDuKien,
+        
+        // Thông tin hàng hóa
+        TenHH: productData ? productData.TenHH : (hangHoa ? hangHoa.tenHH : ''),
+        SoLuong: productData ? productData.SoLuong : (hangHoa ? hangHoa.soLuong : 1),
+        TrongLuong: productData ? productData.TrongLuong : (hangHoa ? hangHoa.trongLuong : 0),
+        
+        // Cấu trúc dữ liệu phụ
+        khachHang: customerData ? {
+          id: khachHangId,
+          ID_KH: khachHangId,
+          tenKhachHang: customerData.Ten_KH,
+          TenKhachHang: customerData.Ten_KH,
+          Ten_KH: customerData.Ten_KH,
+          DiaChi: customerData.DiaChi,
+          Email: customerData.Email,
+          SDT: customerData.SDT
+        } : null,
+        
+        nguoiNhan: receiverData ? { 
           id: nguoiNhanId,
-          ten: receiverName,
+          ID_NN: nguoiNhanId,
+          ten: receiverData.Ten_NN,
+          Ten_NN: receiverData.Ten_NN,
+          diaChi: receiverData.DiaChi,
+          sdt: receiverData.SDT
+        } : {
+          id: nguoiNhanId,
+          ten: nguoiNhan.ten,
           diaChi: nguoiNhan.diaChi,
           sdt: nguoiNhan.sdt
         },
-        hangHoa: {  // Thông tin hàng hóa
+        
+        hangHoa: productData ? {
+          id: finalHangHoaId,
+          ID_HH: finalHangHoaId,
+          tenHH: productData.TenHH,
+          TenHH: productData.TenHH,
+          soLuong: productData.SoLuong,
+          trongLuong: productData.TrongLuong,
+          loaiHH: productData.TenLoaiHH
+        } : {
           id: finalHangHoaId,
           tenHH: hangHoa ? hangHoa.tenHH : null,
+          soLuong: hangHoa ? hangHoa.soLuong : 1
         },
+        
+        // Trạng thái đơn hàng
+        TrangThaiDonHang: 'Đang chờ xử lý', 
         status: 'pending'
       };
       // Chỉ emit socket khi insert thành công và không bị trùng mã vận đơn
