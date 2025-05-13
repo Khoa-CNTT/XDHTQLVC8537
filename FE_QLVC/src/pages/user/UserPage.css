@@ -772,7 +772,7 @@
 .upload-info {
     color: #6b7280;
     font-size: 12px;
-
+}
   /* Hiding notification text on small screens */
   .notification-bell .notification-title {
     display: none;
