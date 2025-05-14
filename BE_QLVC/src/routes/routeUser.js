@@ -13,6 +13,7 @@ const {
     getDashboardStats,
     updateCustomer,
     updateStaff,
+    forgotPassword,
     updatePassword,
 } = require('../controllers/controllerUser');
 
@@ -26,6 +27,7 @@ router.post('/register', registerUser);
 router.get('/users/:id', getUserById);
 router.get('/nhanvien', getAllNhanVien);
 router.post('/login', loginUser);
+router.post("/forgotpassword", forgotPassword);
 
 // Import auth middleware
 const authMiddleware = require('../middleware/auth');
